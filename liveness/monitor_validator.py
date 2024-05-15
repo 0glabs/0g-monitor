@@ -30,16 +30,21 @@ data = pd.read_csv("user-data/validator_rpcs.csv")
 while True:
     for _, row in data.iterrows():
         rpc = row["rpc"]
-        # Create a Web3 instance connected to the specified RPC URL
-        w3 = Web3(Web3.HTTPProvider(rpc))
+        validator = row['validator']
+        try:
+            # Create a Web3 instance connected to the specified RPC URL
+            w3 = Web3(Web3.HTTPProvider(rpc))
 
-        # Inject PoA middleware for networks using Proof of Authority consensus
-        w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+            # Inject PoA middleware for networks using Proof of Authority consensus
+            w3.middleware_onion.inject(geth_poa_middleware, layer=0)
 
-        # Check for connection to the Ethereum network
-        if not w3.is_connected():
-            logger.error(f"{rpc} failed")
-        else:
-            logger.info(f"{rpc} succeeded")
+            # Check for connection to the Ethereum network
+            if not w3.is_connected():
+                logger.error(f"{rpc} of {validator} failed")
+            else:
+                logger.info(f"{rpc} of {validator} succeeded")
+        except Exception as e:
+            logger.info(f"{rpc} of {validator} failed")
+        
 
     time.sleep(60)
