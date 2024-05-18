@@ -25,4 +25,5 @@ go.work
 
 # Executable file on Linxu or Mac
 0g-monitor
-.env
+
+*.env

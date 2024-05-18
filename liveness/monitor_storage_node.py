@@ -29,26 +29,40 @@ logger.addHandler(rotating_file_handler)
 logger.setLevel(logging.INFO)
 
 
-data = pd.read_csv('user-data/ips.csv')
+data = pd.read_csv('user-data/validator_rpcs.csv')
+data.fillna('', inplace=True)
 
 
-block_rpc_endpoint = "http://localhost:8545"
-storage_contract_address = "0x1234567890"
+block_rpc_endpoint = "https://rpc-testnet.0g.ai"
+storage_contract_address = "0x2b8bC93071A6f8740867A7544Ad6653AdEB7D919"
 file_hashes = {}
 
 while True:
     for _, row in data.iterrows():
-        ip = row['ip']
-        file_name = f'data/{ip.replace(".", "-")}'
+        validator = row['validator_address']
+        storage_node = row['storage_node_rpc']
+        
+        if len(storage_node) == 0:
+            continue
+        
+        is_connected = False
+        
+        file_name = f'data/{validator.replace(".", "-")}'
         with open(file_name, "wb") as f:
-            random_bytes = randbytes(1048576 * 5)  # 5 MB
+            random_bytes = randbytes(1048576 * 1)  # 1 MB
             f.write(random_bytes)
-        cmd = f"./0g-storage-client/0g-storage-client upload --url {block_rpc_endpoint} --contract {storage_contract_address} --key {PRIV_KEY} --node http://{ip} --file ./{file_name}"
-        # execute cmd
-        result = subprocess.run(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        if result.stderr != "":
-            logger.error(f"{ip} failed")
+            
+        for r in storage_node.split(','):
+            cmd = f"./0g-storage-client upload --url {block_rpc_endpoint} --contract {storage_contract_address} --key {PRIV_KEY} --node http://{r} --file ./{file_name}"
+            # execute cmd
+            result = subprocess.run(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+            if "upload took" in result.stdout:
+                is_connected = True
+                break
+        
+        if is_connected:
+            logger.info(f"{storage_node} of {validator} succeeded")
         else:
-            logger.info(f"{ip} succeeded")
+            logger.info(f"{storage_node} of {validator} failed")
 
     time.sleep(600)

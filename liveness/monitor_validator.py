@@ -25,26 +25,34 @@ logger.setLevel(logging.INFO)
 
 rpcs = []
 data = pd.read_csv("user-data/validator_rpcs.csv")
+data.fillna('', inplace=True)
 
 
 while True:
     for _, row in data.iterrows():
-        rpc = row["rpc"]
-        validator = row['validator']
-        try:
-            # Create a Web3 instance connected to the specified RPC URL
-            w3 = Web3(Web3.HTTPProvider(rpc))
-
-            # Inject PoA middleware for networks using Proof of Authority consensus
-            w3.middleware_onion.inject(geth_poa_middleware, layer=0)
-
-            # Check for connection to the Ethereum network
-            if not w3.is_connected():
-                logger.error(f"{rpc} of {validator} failed")
-            else:
-                logger.info(f"{rpc} of {validator} succeeded")
-        except Exception as e:
-            logger.info(f"{rpc} of {validator} failed")
+        rpc = row["validator_rpc"]
+        validator = row['validator_address']
         
+        if len(rpc) == 0:
+            continue
+        
+        is_connected = False
+        for r in rpc.split(','):
+            try:
+                # Create a Web3 instance connected to the specified RPC URL
+                w3_http = Web3(Web3.HTTPProvider(f'http://{r}', request_kwargs={'timeout': 3}))
+                w3_https = Web3(Web3.HTTPProvider(f'https://{r}', request_kwargs={'timeout': 3}))
 
-    time.sleep(60)
+                # Check for connection to the Ethereum network
+                if w3_http.is_connected() or w3_https.is_connected():
+                    is_connected = True
+                    break
+            except Exception as e:
+                continue
+        
+        if is_connected:
+            logger.info(f"{rpc} of {validator} succeeded")
+        else:
+            logger.info(f"{rpc} of {validator} failed")
+
+    time.sleep(30)
