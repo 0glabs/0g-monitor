@@ -27,3 +27,11 @@ go.work
 0g-monitor
 
 *.env
+
+*/data/*
+*/log/*
+*/user-data/*
+
+*0g-storage-client
+*.csv
+metrics.json
