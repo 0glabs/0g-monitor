@@ -38,6 +38,7 @@ while True:
         
         is_connected = False
         for r in rpc.split(','):
+            r = r.strip()
             try:
                 # Create a Web3 instance connected to the specified RPC URL
                 w3_http = Web3(Web3.HTTPProvider(f'http://{r}', request_kwargs={'timeout': 3}))
