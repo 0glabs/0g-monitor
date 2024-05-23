@@ -59,7 +59,7 @@ while True:
         for r in storage_node.split(','):
             cmd = f"./0g-storage-client upload --url {block_rpc_endpoint} --contract {storage_contract_address} --key {PRIV_KEY} --node http://{r} --file ./{file_name}"
             # execute cmd
-            result = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            result = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
             my_timer = Timer(240, kill, [result])
             try:
                 my_timer.start()
