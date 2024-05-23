@@ -58,6 +58,7 @@ def process_item(row):
         f.write(random_bytes)
 
     for r in storage_node.split(","):
+        r = r.strip()
         cmd = f"./0g-storage-client upload --url {block_rpc_endpoint} --contract {storage_contract_address} --key {PRIV_KEY} --node http://{r} --file ./{file_name}"
         # execute cmd
         result = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
