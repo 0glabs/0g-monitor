@@ -60,7 +60,7 @@ while True:
             cmd = f"./0g-storage-client upload --url {block_rpc_endpoint} --contract {storage_contract_address} --key {PRIV_KEY} --node http://{r} --file ./{file_name}"
             # execute cmd
             result = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-            my_timer = Timer(180, kill, [result])
+            my_timer = Timer(240, kill, [result])
             try:
                 my_timer.start()
                 stdout, _ = result.communicate()
