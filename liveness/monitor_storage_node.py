@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from random import randbytes
 import pandas as pd
 from threading import Timer
+import concurrent.futures
 
 import logging
 from logging.handlers import TimedRotatingFileHandler
@@ -30,8 +31,8 @@ logger.addHandler(rotating_file_handler)
 logger.setLevel(logging.INFO)
 
 
-data = pd.read_csv('user-data/validator_rpcs.csv')
-data.fillna('', inplace=True)
+data = pd.read_csv("user-data/validator_rpcs.csv")
+data.fillna("", inplace=True)
 
 
 kill = lambda process: process.kill()
@@ -41,38 +42,45 @@ block_rpc_endpoint = "https://rpc-testnet.0g.ai"
 storage_contract_address = "0x2b8bC93071A6f8740867A7544Ad6653AdEB7D919"
 file_hashes = {}
 
-while True:
-    for _, row in data.iterrows():
-        validator = row['validator_address']
-        storage_node = row['storage_node_rpc']
-        
-        if len(storage_node) == 0:
-            continue
-        
-        is_connected = False
-        
-        file_name = f'data/{validator.replace(".", "-")}'
-        with open(file_name, "wb") as f:
-            random_bytes = randbytes(1048576 * 1)  # 1 MB
-            f.write(random_bytes)
-            
-        for r in storage_node.split(','):
-            cmd = f"./0g-storage-client upload --url {block_rpc_endpoint} --contract {storage_contract_address} --key {PRIV_KEY} --node http://{r} --file ./{file_name}"
-            # execute cmd
-            result = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-            my_timer = Timer(240, kill, [result])
-            try:
-                my_timer.start()
-                stdout, _ = result.communicate()
-                if "upload took" in stdout:
-                    is_connected = True
-                    break
-            finally:
-                my_timer.cancel()
-        
-        if is_connected:
-            logger.info(f"{storage_node} of {validator} succeeded")
-        else:
-            logger.info(f"{storage_node} of {validator} failed")
 
-    time.sleep(600)
+def process_item(row):
+    validator = row["validator_address"]
+    storage_node = row["storage_node_rpc"]
+
+    if len(storage_node) == 0:
+        return
+
+    is_connected = False
+
+    file_name = f'data/{validator.replace(".", "-")}'
+    with open(file_name, "wb") as f:
+        random_bytes = randbytes(1048576 * 1)  # 1 MB
+        f.write(random_bytes)
+
+    for r in storage_node.split(","):
+        cmd = f"./0g-storage-client upload --url {block_rpc_endpoint} --contract {storage_contract_address} --key {PRIV_KEY} --node http://{r} --file ./{file_name}"
+        # execute cmd
+        result = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        my_timer = Timer(240, kill, [result])
+        try:
+            my_timer.start()
+            stdout, _ = result.communicate()
+            if "upload took" in stdout:
+                is_connected = True
+                break
+        finally:
+            my_timer.cancel()
+
+    if is_connected:
+        logger.info(f"{storage_node} of {validator} succeeded")
+    else:
+        logger.info(f"{storage_node} of {validator} failed")
+
+
+while True:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=16) as executor:
+
+        futures = [executor.submit(process_item, row) for _, row in data.iterrows()]
+
+        # Wait for all futures to complete
+        concurrent.futures.wait(futures)
