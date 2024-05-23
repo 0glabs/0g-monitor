@@ -5,6 +5,7 @@ import os
 from dotenv import load_dotenv
 from random import randbytes
 import pandas as pd
+from threading import Timer
 
 import logging
 from logging.handlers import TimedRotatingFileHandler
@@ -33,6 +34,9 @@ data = pd.read_csv('user-data/validator_rpcs.csv')
 data.fillna('', inplace=True)
 
 
+kill = lambda process: process.kill()
+
+
 block_rpc_endpoint = "https://rpc-testnet.0g.ai"
 storage_contract_address = "0x2b8bC93071A6f8740867A7544Ad6653AdEB7D919"
 file_hashes = {}
@@ -55,10 +59,16 @@ while True:
         for r in storage_node.split(','):
             cmd = f"./0g-storage-client upload --url {block_rpc_endpoint} --contract {storage_contract_address} --key {PRIV_KEY} --node http://{r} --file ./{file_name}"
             # execute cmd
-            result = subprocess.run(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-            if "upload took" in result.stdout:
-                is_connected = True
-                break
+            result = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            my_timer = Timer(180, kill, [result])
+            try:
+                my_timer.start()
+                stdout, _ = result.communicate()
+                if "upload took" in stdout:
+                    is_connected = True
+                    break
+            finally:
+                my_timer.cancel()
         
         if is_connected:
             logger.info(f"{storage_node} of {validator} succeeded")
