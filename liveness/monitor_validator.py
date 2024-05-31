@@ -41,13 +41,19 @@ while True:
             r = r.strip()
             try:
                 # Create a Web3 instance connected to the specified RPC URL
-                w3_http = Web3(Web3.HTTPProvider(f'http://{r}', request_kwargs={'timeout': 3}))
-                w3_https = Web3(Web3.HTTPProvider(f'https://{r}', request_kwargs={'timeout': 3}))
-
-                # Check for connection to the Ethereum network
-                if w3_http.is_connected() or w3_https.is_connected():
-                    is_connected = True
-                    break
+                if not r.startswith('http'):
+                    w3_http = Web3(Web3.HTTPProvider(f'http://{r}', request_kwargs={'timeout': 3}))
+                    w3_https = Web3(Web3.HTTPProvider(f'https://{r}', request_kwargs={'timeout': 3}))
+                    # Check for connection to the Ethereum network
+                    if w3_http.is_connected() or w3_https.is_connected():
+                        is_connected = True
+                        break
+                else:
+                    w3_http = Web3(Web3.HTTPProvider(r, request_kwargs={'timeout': 3}))
+                    # Check for connection to the Ethereum network
+                    if w3_http.is_connected():
+                        is_connected = True
+                        break
             except Exception as e:
                 continue
         
