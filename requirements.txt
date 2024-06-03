@@ -1,3 +1,4 @@
 python-dotenv
 pandas
 web3
+mysql-connector-python

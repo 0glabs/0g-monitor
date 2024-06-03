@@ -3,14 +3,16 @@ package storage
 import (
 	"time"
 
+	"github.com/Conflux-Chain/go-conflux-util/health"
 	"github.com/Conflux-Chain/go-conflux-util/viper"
 	"github.com/sirupsen/logrus"
 )
 
 type Config struct {
-	Interval     time.Duration `default:"5s"`
-	StorageNodes map[string]string
-	PrivateKey   string
+	Interval          time.Duration `default:"5s"`
+	StorageNodes      map[string]string
+	StorageNodeReport health.TimedCounterConfig
+	PrivateKey        string
 }
 
 func MustMonitorFromViper() {
@@ -45,6 +47,6 @@ func Monitor(config Config) {
 
 func monitorOnce(config *Config, storageNodes []*StorageNode) {
 	for _, v := range storageNodes {
-		v.CheckStatus(config.PrivateKey)
+		v.CheckStatus(config.StorageNodeReport, config.PrivateKey)
 	}
 }
