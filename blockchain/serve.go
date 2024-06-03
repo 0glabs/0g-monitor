@@ -16,7 +16,6 @@ type Config struct {
 	BlockchainHeightReport health.TimedCounterConfig
 	Validators             map[string]string
 	ValidatorReport        health.TimedCounterConfig
-	StorageNodes           map[string]string
 	PrivateKey             string
 }
 
@@ -54,22 +53,16 @@ func Monitor(config Config) {
 		validators = append(validators, MustNewValidator(nodes[0].Client, name, address))
 	}
 
-	var storageNodes []*StorageNode
-	for name, address := range config.StorageNodes {
-		logrus.WithField("name", name).WithField("address", address).Debug("Start to monitor storage node")
-		storageNodes = append(storageNodes, MustNewStorageNode(name, address))
-	}
-
 	// Monitor node status periodically
 	ticker := time.NewTicker(config.Interval)
 	defer ticker.Stop()
 
 	for range ticker.C {
-		monitorOnce(&config, nodes, validators, storageNodes)
+		monitorOnce(&config, nodes, validators)
 	}
 }
 
-func monitorOnce(config *Config, nodes []*Node, validators []*Validator, storageNodes []*StorageNode) {
+func monitorOnce(config *Config, nodes []*Node, validators []*Validator) {
 	for _, v := range nodes {
 		v.UpdateHeight(config.AvailabilityReport)
 	}
@@ -89,9 +82,5 @@ func monitorOnce(config *Config, nodes []*Node, validators []*Validator, storage
 
 	for _, v := range validators {
 		v.Update(config.ValidatorReport)
-	}
-
-	for _, v := range storageNodes {
-		v.CheckStatus(config.PrivateKey, max)
 	}
 }

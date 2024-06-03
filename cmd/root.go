@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/0glabs/0g-monitor/blockchain"
+	"github.com/0glabs/0g-monitor/storage"
 	"github.com/Conflux-Chain/go-conflux-util/config"
 	"github.com/Conflux-Chain/go-conflux-util/log"
 	"github.com/sirupsen/logrus"
@@ -29,14 +30,24 @@ func initConfig() {
 func start(*cobra.Command, []string) {
 	var wg sync.WaitGroup
 
-	startAction(blockchain.MustMonitorFromViper, &wg)
+	startBlockchainAction(blockchain.MustMonitorFromViper, &wg)
+	startStorageAction(storage.MustMonitorFromViper, &wg)
 
 	logrus.Warn("Monitoring service started")
 
 	wg.Wait()
 }
 
-func startAction(action func(), wg *sync.WaitGroup) {
+func startBlockchainAction(action func(), wg *sync.WaitGroup) {
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+		action()
+	}()
+}
+
+func startStorageAction(action func(), wg *sync.WaitGroup) {
 	wg.Add(1)
 
 	go func() {
