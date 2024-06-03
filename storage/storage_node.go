@@ -1,21 +1,17 @@
 package storage
 
 import (
-	"net/http"
-	"time"
-
+	"github.com/0glabs/0g-storage-client/node"
 	"github.com/sirupsen/logrus"
-	"github.com/ybbus/jsonrpc/v2"
 )
 
 type StorageNode struct {
-	client  jsonrpc.RPCClient
+	client  node.Client
 	name    string
 	address string
 }
 
 func MustNewStorageNode(name, address string) *StorageNode {
-
 	storageNode, err := NewStorageNode(name, address)
 	if err != nil {
 		logrus.WithError(err).Fatal("Failed to create storage node")
@@ -25,16 +21,10 @@ func MustNewStorageNode(name, address string) *StorageNode {
 }
 
 func NewStorageNode(name, address string) (*StorageNode, error) {
-	httpClient := &http.Client{
-		Timeout: 5 * time.Second, // Set timeout to 5 seconds
-	}
-
-	client := jsonrpc.NewClientWithOpts(address, &jsonrpc.RPCClientOpts{
-		HTTPClient: httpClient,
-	})
+	client := node.MustNewClient(address)
 
 	return &StorageNode{
-		client:  client,
+		client:  *client,
 		name:    name,
 		address: address,
 	}, nil
@@ -49,7 +39,7 @@ func (node StorageNode) String() string {
 }
 
 func (node *StorageNode) CheckStatus(privateKey string) {
-	_, err := node.client.Call("zgs_getStatus")
+	_, err := node.client.ZeroGStorage().GetStatus()
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
 			"storage node": node.name,

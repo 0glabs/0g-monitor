@@ -1,15 +1,17 @@
 module github.com/0glabs/0g-monitor
 
-go 1.20
+go 1.21
+
+toolchain go1.21.6
 
 require (
+	github.com/0glabs/0g-storage-client v0.1.15
 	github.com/Conflux-Chain/go-conflux-util v0.2.1
 	github.com/ethereum/go-ethereum v1.10.15
 	github.com/openweb3/web3go v0.2.7
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.8.0
-	github.com/ybbus/jsonrpc/v2 v2.1.7
 )
 
 require (
