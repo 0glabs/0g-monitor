@@ -69,6 +69,7 @@
 
 # Blockchain Monitoring Configurations
 # blockchain:
+#   privateKey: "0x"
 #   nodes:
 #     # name -> RPC URL
 #     node0: http://ip0:8545
@@ -94,3 +95,6 @@
 #   validatorReport:
 #     threshold: 1m
 #     remind: 5m
+#   storageNodes:
+#     node0: http://ip0:5678
+#     node1: http://ip1:5678
