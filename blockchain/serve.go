@@ -16,7 +16,7 @@ type Config struct {
 	BlockchainHeightReport health.TimedCounterConfig
 	Validators             map[string]string
 	ValidatorReport        health.TimedCounterConfig
-	StorageNodes		   map[string]string
+	StorageNodes           map[string]string
 	PrivateKey             string
 }
 
