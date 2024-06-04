@@ -8,10 +8,12 @@ require (
 	github.com/0glabs/0g-storage-client v0.1.15
 	github.com/Conflux-Chain/go-conflux-util v0.2.1
 	github.com/ethereum/go-ethereum v1.10.15
+	github.com/go-gota/gota v0.12.0
 	github.com/openweb3/web3go v0.2.7
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.8.0
+	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 )
 
 require (
@@ -71,6 +73,7 @@ require (
 	golang.org/x/net v0.0.0-20220111093109-d55c255bac03 // indirect
 	golang.org/x/sys v0.0.0-20220715151400-c0bba94af5f8 // indirect
 	golang.org/x/text v0.3.7 // indirect
+	gonum.org/v1/gonum v0.9.1 // indirect
 	gopkg.in/ini.v1 v1.66.2 // indirect
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect

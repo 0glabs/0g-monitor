@@ -1,7 +1,9 @@
 package storage
 
 import (
+	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/0glabs/0g-storage-client/node"
@@ -10,14 +12,21 @@ import (
 )
 
 type StorageNode struct {
-	client  node.Client
-	name    string
-	address string
-	health  health.TimedCounter
+	client           *node.Client
+	backupClient     *node.Client
+	discordId        string
+	validatorAddress string
+	ip               string
+	health           health.TimedCounter
 }
 
-func MustNewStorageNode(name, address string) *StorageNode {
-	storageNode, err := NewStorageNode(name, address)
+const (
+	StorageNodeDisconnected string = "DISCONNECTED"
+	StorageNodeConnected    string = "CONNECTED"
+)
+
+func MustNewStorageNode(name, validatorAddress, ip string) *StorageNode {
+	storageNode, err := NewStorageNode(name, validatorAddress, ip)
 	if err != nil {
 		logrus.WithError(err).Fatal("Failed to create storage node")
 	}
@@ -25,54 +34,101 @@ func MustNewStorageNode(name, address string) *StorageNode {
 	return storageNode
 }
 
-func NewStorageNode(name, address string) (*StorageNode, error) {
-	client := node.MustNewClient(address)
+func NewStorageNode(discordId, validatorAddress, ip string) (*StorageNode, error) {
+	if strings.HasPrefix(ip, "http") {
+		client := node.MustNewClient(ip)
+		return &StorageNode{
+			client:           client,
+			discordId:        discordId,
+			validatorAddress: validatorAddress,
+			ip:               ip,
+		}, nil
+	}
+
+	client := node.MustNewClient("http://" + ip)
+	backupClient := node.MustNewClient("https://" + ip)
 
 	return &StorageNode{
-		client:  *client,
-		name:    name,
-		address: address,
+		client:           client,
+		backupClient:     backupClient,
+		discordId:        discordId,
+		validatorAddress: validatorAddress,
+		ip:               ip,
 	}, nil
 }
 
-func (node StorageNode) String() string {
-	if len(node.name) == 0 {
-		return node.address
-	}
-
-	return node.name
-}
-
-func (node *StorageNode) CheckStatus(config health.TimedCounterConfig, privateKey string) {
-	_, err := node.client.ZeroGStorage().GetStatus()
+func (storageNode *StorageNode) CheckStatus(config health.TimedCounterConfig) {
+	_, err := storageNode.client.ZeroGStorage().GetStatus()
 	if logrus.IsLevelEnabled(logrus.DebugLevel) {
 		logrus.WithFields(logrus.Fields{
-			"storage node": node.name,
-			"address":      node.address,
+			"ip": storageNode.ip,
 		}).Debug("Storage node status report")
 	}
 
 	if err != nil {
-		unhealthy, unrecovered, elapsed := node.health.OnFailure(config)
+		unhealthy, unrecovered, elapsed := storageNode.health.OnFailure(config)
 
 		if unhealthy {
 			logrus.WithFields(logrus.Fields{
-				"elapsed":      prettyElapsed(elapsed),
-				"storage node": node.String(),
+				"elapsed": prettyElapsed(elapsed),
+				"ip":      storageNode.ip,
 			}).Error("Storage node disconnected")
 		}
 
 		if unrecovered {
 			logrus.WithFields(logrus.Fields{
-				"elapsed":      prettyElapsed(elapsed),
-				"storage node": node.String(),
+				"elapsed": prettyElapsed(elapsed),
+				"ip":      storageNode.ip,
 			}).Error("Storage node disconnected and not recovered yet")
 		}
-	} else if recovered, elapsed := node.health.OnSuccess(config); recovered {
+	} else if recovered, elapsed := storageNode.health.OnSuccess(config); recovered {
 		logrus.WithFields(logrus.Fields{
-			"elapsed":      prettyElapsed(elapsed),
-			"storage node": node.String(),
+			"elapsed": prettyElapsed(elapsed),
+			"ip":      storageNode.ip,
 		}).Warn("Storage node recovered now")
+	}
+}
+
+func (storageNode *StorageNode) CheckStatusSilence(config health.TimedCounterConfig, db *sql.DB) {
+	upsertQuery := `
+        INSERT INTO user_status (ip, discord_id, address, status)
+        VALUES (?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+        status = VALUES(status)
+	`
+	
+	_, err := storageNode.client.ZeroGStorage().GetStatus()
+	if err != nil && storageNode.backupClient != nil {
+		_, err = storageNode.backupClient.ZeroGStorage().GetStatus()
+	}
+
+	if err != nil {
+		logrus.WithFields(logrus.Fields{
+			"discord_id": storageNode.discordId,
+			"ip":         storageNode.ip,
+		}).Info("Storage node connection failed")
+
+		storageNode.health.OnFailure(config)
+		_, err = db.Exec(upsertQuery, storageNode.ip, storageNode.discordId, storageNode.validatorAddress, StorageNodeDisconnected)
+		if err != nil {
+			logrus.WithFields(logrus.Fields{
+				"ip": storageNode.ip,
+			}).Warn("Failed to update storage node status in db")
+		}
+	} else {
+		logrus.WithFields(logrus.Fields{
+			"discord_id": storageNode.discordId,
+			"ip":         storageNode.ip,
+		}).Info("Storage node connection succeeded")
+
+		if recovered, _ := storageNode.health.OnSuccess(config); recovered {
+			_, err = db.Exec(upsertQuery, storageNode.ip, storageNode.discordId, storageNode.validatorAddress, StorageNodeDisconnected)
+			if err != nil {
+				logrus.WithFields(logrus.Fields{
+					"ip": storageNode.ip,
+				}).Warn("Failed to update storage node status in db")
+			}
+		}
 	}
 }
 
