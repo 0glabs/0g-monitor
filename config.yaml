@@ -96,7 +96,7 @@
 #     remind: 5m
 # Storage Service Monitoring Configurations
 # storage:
-#   storageNodes:
+#   nodes:
 #     node0: http://ip0:5678
 #     node1: http://ip1:5678
 #   interval: 1800s

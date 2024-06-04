@@ -25,7 +25,7 @@ type DBConfig struct {
 
 type Config struct {
 	Interval          time.Duration `default:"1800s"`
-	StorageNodes      map[string]string
+	Nodes             map[string]string
 	StorageNodeReport health.TimedCounterConfig
 	DbConfig          DBConfig
 }
@@ -49,15 +49,15 @@ func Monitor(config Config) {
 	logrus.SetOutput(io.MultiWriter(os.Stdout, lumberjackLogger))
 
 	logrus.WithFields(logrus.Fields{
-		"storage_nodes": len(config.StorageNodes),
+		"storage_nodes": len(config.Nodes),
 	}).Info("Start to monitor storage services")
 
-	if len(config.StorageNodes) == 0 {
+	if len(config.Nodes) == 0 {
 		return
 	}
 
 	var storageNodes []*StorageNode
-	for name, ip := range config.StorageNodes {
+	for name, ip := range config.Nodes {
 		logrus.WithField("name", name).WithField("ip", ip).Debug("Start to monitor storage node")
 		storageNodes = append(storageNodes, MustNewStorageNode(name, name, ip))
 	}
@@ -80,9 +80,9 @@ func Monitor(config Config) {
 	df := dataframe.ReadCSV(f)
 	var userNodes []*StorageNode
 	for i := 0; i < df.Nrow(); i++ {
-		discordId := df.Subset(1).Col("discord_id").Elem(0).String()
-		validatorAddress := df.Subset(1).Col("validator_address").Elem(0).String()
-		rpc := df.Subset(1).Col("storage_node_rpc").Elem(0).String()
+		discordId := df.Subset(i).Col("discord_id").Elem(0).String()
+		validatorAddress := df.Subset(i).Col("validator_address").Elem(0).String()
+		rpc := df.Subset(i).Col("storage_node_rpc").Elem(0).String()
 		ips := strings.Split(rpc, ",")
 		for _, ip := range ips {
 			ip = strings.TrimSpace(ip)

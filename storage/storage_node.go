@@ -96,7 +96,7 @@ func (storageNode *StorageNode) CheckStatusSilence(config health.TimedCounterCon
         ON DUPLICATE KEY UPDATE
         status = VALUES(status)
 	`
-	
+
 	_, err := storageNode.client.ZeroGStorage().GetStatus()
 	if err != nil && storageNode.backupClient != nil {
 		_, err = storageNode.backupClient.ZeroGStorage().GetStatus()
