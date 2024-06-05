@@ -9,6 +9,7 @@ require (
 	github.com/Conflux-Chain/go-conflux-util v0.2.1
 	github.com/ethereum/go-ethereum v1.10.15
 	github.com/go-gota/gota v0.12.0
+	github.com/go-sql-driver/mysql v1.6.0
 	github.com/openweb3/web3go v0.2.7
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.3

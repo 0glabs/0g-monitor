@@ -11,6 +11,7 @@ import (
 	"github.com/Conflux-Chain/go-conflux-util/health"
 	"github.com/Conflux-Chain/go-conflux-util/viper"
 	"github.com/go-gota/gota/dataframe"
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
@@ -30,8 +31,8 @@ type Config struct {
 	DbConfig          DBConfig
 }
 
-const ValidatorFile = "../liveness/user-data/validator_rpcs.csv"
-const operatorSysLogFile = "/var/log/0g-monitor/monitor.log"
+const ValidatorFile = "liveness/user-data/validator_rpcs.csv"
+const operatorSysLogFile = "log/monitor.log"
 
 func MustMonitorFromViper() {
 	var config Config
@@ -87,7 +88,10 @@ func Monitor(config Config) {
 		for _, ip := range ips {
 			ip = strings.TrimSpace(ip)
 			logrus.WithField("discord_id", discordId).WithField("ip", ip).Debug("Start to monitor user node")
-			userNodes = append(userNodes, MustNewStorageNode(discordId, validatorAddress, ip))
+			currNode := MustNewStorageNode(discordId, validatorAddress, ip)
+			if currNode != nil {
+				userNodes = append(userNodes, currNode)
+			}
 		}
 	}
 

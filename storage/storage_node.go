@@ -25,10 +25,14 @@ const (
 	StorageNodeConnected    string = "CONNECTED"
 )
 
-func MustNewStorageNode(name, validatorAddress, ip string) *StorageNode {
-	storageNode, err := NewStorageNode(name, validatorAddress, ip)
+func MustNewStorageNode(discordId, validatorAddress, ip string) *StorageNode {
+	storageNode, err := NewStorageNode(discordId, validatorAddress, ip)
 	if err != nil {
-		logrus.WithError(err).Fatal("Failed to create storage node")
+		logrus.WithFields(logrus.Fields{
+			"discord_id": discordId,
+			"ip":         ip,
+		}).WithError(err).Info("Failed to create storage node")
+		return nil
 	}
 
 	return storageNode
@@ -36,7 +40,10 @@ func MustNewStorageNode(name, validatorAddress, ip string) *StorageNode {
 
 func NewStorageNode(discordId, validatorAddress, ip string) (*StorageNode, error) {
 	if strings.HasPrefix(ip, "http") {
-		client := node.MustNewClient(ip)
+		client, err := node.NewClient(ip)
+		if err != nil {
+			return nil, err
+		}
 		return &StorageNode{
 			client:           client,
 			discordId:        discordId,
@@ -45,8 +52,14 @@ func NewStorageNode(discordId, validatorAddress, ip string) (*StorageNode, error
 		}, nil
 	}
 
-	client := node.MustNewClient("http://" + ip)
-	backupClient := node.MustNewClient("https://" + ip)
+	client, err := node.NewClient("http://" + ip)
+	if err != nil {
+		return nil, err
+	}
+	backupClient, err := node.NewClient("https://" + ip)
+	if err != nil {
+		backupClient = nil
+	}
 
 	return &StorageNode{
 		client:           client,
@@ -121,13 +134,11 @@ func (storageNode *StorageNode) CheckStatusSilence(config health.TimedCounterCon
 			"ip":         storageNode.ip,
 		}).Info("Storage node connection succeeded")
 
-		if recovered, _ := storageNode.health.OnSuccess(config); recovered {
-			_, err = db.Exec(upsertQuery, storageNode.ip, storageNode.discordId, storageNode.validatorAddress, StorageNodeDisconnected)
-			if err != nil {
-				logrus.WithFields(logrus.Fields{
-					"ip": storageNode.ip,
-				}).Warn("Failed to update storage node status in db")
-			}
+		_, err = db.Exec(upsertQuery, storageNode.ip, storageNode.discordId, storageNode.validatorAddress, StorageNodeConnected)
+		if err != nil {
+			logrus.WithFields(logrus.Fields{
+				"ip": storageNode.ip,
+			}).Warn("Failed to update storage node status in db")
 		}
 	}
 }
