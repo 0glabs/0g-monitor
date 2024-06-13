@@ -8,6 +8,8 @@ import (
 
 	"github.com/0glabs/0g-storage-client/node"
 	"github.com/Conflux-Chain/go-conflux-util/health"
+	providers "github.com/openweb3/go-rpc-provider/provider_wrapper"
+
 	"github.com/sirupsen/logrus"
 )
 
@@ -29,8 +31,8 @@ func MustNewStorageNode(discordId, validatorAddress, ip string) *StorageNode {
 	storageNode, err := NewStorageNode(discordId, validatorAddress, ip)
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
-			"discord_id": discordId,
-			"ip":         ip,
+			"address": validatorAddress,
+			"ip":      ip,
 		}).WithError(err).Info("Failed to create storage node")
 		return nil
 	}
@@ -39,8 +41,15 @@ func MustNewStorageNode(discordId, validatorAddress, ip string) *StorageNode {
 }
 
 func NewStorageNode(discordId, validatorAddress, ip string) (*StorageNode, error) {
+	ip = strings.TrimSpace(ip)
+	if len(ip) == 0 {
+		return nil, fmt.Errorf("empty ip")
+	}
+	opts := providers.Option{
+		RequestTimeout: 5 * time.Second,
+	}
 	if strings.HasPrefix(ip, "http") {
-		client, err := node.NewClient(ip)
+		client, err := node.NewClient(ip, opts)
 		if err != nil {
 			return nil, err
 		}
@@ -52,11 +61,11 @@ func NewStorageNode(discordId, validatorAddress, ip string) (*StorageNode, error
 		}, nil
 	}
 
-	client, err := node.NewClient("http://" + ip)
+	client, err := node.NewClient("http://"+ip, opts)
 	if err != nil {
 		return nil, err
 	}
-	backupClient, err := node.NewClient("https://" + ip)
+	backupClient, err := node.NewClient("https://"+ip, opts)
 	if err != nil {
 		backupClient = nil
 	}
@@ -104,7 +113,7 @@ func (storageNode *StorageNode) CheckStatus(config health.TimedCounterConfig) {
 
 func (storageNode *StorageNode) CheckStatusSilence(config health.TimedCounterConfig, db *sql.DB) {
 	upsertQuery := `
-        INSERT INTO user_status (ip, discord_id, address, status)
+        INSERT INTO user_storage_status (ip, discord_id, address, status)
         VALUES (?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE
         status = VALUES(status)
@@ -117,8 +126,8 @@ func (storageNode *StorageNode) CheckStatusSilence(config health.TimedCounterCon
 
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
-			"discord_id": storageNode.discordId,
-			"ip":         storageNode.ip,
+			"address": storageNode.validatorAddress,
+			"ip":      storageNode.ip,
 		}).Info("Storage node connection failed")
 
 		storageNode.health.OnFailure(config)
@@ -130,8 +139,8 @@ func (storageNode *StorageNode) CheckStatusSilence(config health.TimedCounterCon
 		}
 	} else {
 		logrus.WithFields(logrus.Fields{
-			"discord_id": storageNode.discordId,
-			"ip":         storageNode.ip,
+			"address": storageNode.validatorAddress,
+			"ip":      storageNode.ip,
 		}).Info("Storage node connection succeeded")
 
 		_, err = db.Exec(upsertQuery, storageNode.ip, storageNode.discordId, storageNode.validatorAddress, StorageNodeConnected)

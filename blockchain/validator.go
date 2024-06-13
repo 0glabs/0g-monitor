@@ -2,6 +2,7 @@ package blockchain
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/0glabs/0g-monitor/blockchain/contracts"
 	"github.com/Conflux-Chain/go-conflux-util/health"
@@ -20,8 +21,8 @@ type Validator struct {
 	health  health.TimedCounter
 }
 
-func MustNewValidator(client *web3go.Client, name, address string) *Validator {
-	validator, err := NewValidator(client, name, address)
+func MustNewValidator(client *web3go.Client, name, address string, isCommunity bool) *Validator {
+	validator, err := NewValidator(client, name, address, isCommunity)
 	if err != nil {
 		logrus.WithError(err).Fatal("Failed to create validator")
 	}
@@ -29,7 +30,19 @@ func MustNewValidator(client *web3go.Client, name, address string) *Validator {
 	return validator
 }
 
-func NewValidator(client *web3go.Client, name, address string) (*Validator, error) {
+func NewValidator(client *web3go.Client, name, address string, isCommunity bool) (*Validator, error) {
+	address = strings.TrimSpace(address)
+	if len(address) == 0 {
+		return nil, errors.New("empty address")
+	}
+	if isCommunity {
+		return &Validator{
+			staking: nil,
+			name:    name,
+			address: address,
+		}, nil
+	}
+
 	caller, _ := client.ToClientForContract()
 	staking, err := contracts.NewStakingCaller(precompileStaking, caller)
 	if err != nil {
@@ -86,5 +99,40 @@ func (validator *Validator) Update(config health.TimedCounterConfig) {
 			"elapsed":   prettyElapsed(elapsed),
 			"validator": validator.String(),
 		}).Warn("Validator unfailed now")
+	}
+}
+
+func (validator *Validator) CheckStatusSilence() {
+	isConnected := false
+
+	if strings.HasPrefix(validator.address, "http") {
+		// Connect to the RPC endpoint
+		_, err := web3go.NewClient(validator.address)
+		if err == nil {
+			isConnected = true
+		}
+	} else {
+		// Connect to the IPC endpoint
+		_, err := web3go.NewClient(fmt.Sprintf("http://%s", validator.address))
+		if err != nil {
+			_, err = web3go.NewClient(fmt.Sprintf("https://%s", validator.address))
+			if err == nil {
+				isConnected = true
+			}
+		} else {
+			isConnected = true
+		}
+	}
+
+	if isConnected {
+		logrus.WithFields(logrus.Fields{
+			"address": validator.name,
+			"ip":      validator.address,
+		}).Info("Validator connection succeeded")
+	} else {
+		logrus.WithFields(logrus.Fields{
+			"address": validator.name,
+			"ip":      validator.address,
+		}).Error("Validator connection failed")
 	}
 }

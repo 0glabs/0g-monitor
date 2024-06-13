@@ -28,9 +28,6 @@ go.work
 
 *.env
 
-*/data/*
-*/log/*
-*/user-data/*
-
-*0g-storage-client
-*.csv
+data/*
+log/*
+liveness/*

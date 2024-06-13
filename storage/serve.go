@@ -25,13 +25,13 @@ type DBConfig struct {
 }
 
 type Config struct {
-	Interval          time.Duration `default:"1800s"`
+	Interval          time.Duration `default:"10s"`
 	Nodes             map[string]string
 	StorageNodeReport health.TimedCounterConfig
 	DbConfig          DBConfig
 }
 
-const ValidatorFile = "liveness/user-data/validator_rpcs.csv"
+const ValidatorFile = "data/validator_rpcs.csv"
 const operatorSysLogFile = "log/monitor.log"
 
 func MustMonitorFromViper() {
@@ -87,7 +87,7 @@ func Monitor(config Config) {
 		ips := strings.Split(rpc, ",")
 		for _, ip := range ips {
 			ip = strings.TrimSpace(ip)
-			logrus.WithField("discord_id", discordId).WithField("ip", ip).Debug("Start to monitor user node")
+			logrus.WithField("discord_id", discordId).WithField("ip", ip).Debug("Start to monitor user storage node")
 			currNode := MustNewStorageNode(discordId, validatorAddress, ip)
 			if currNode != nil {
 				userNodes = append(userNodes, currNode)
