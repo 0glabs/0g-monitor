@@ -30,24 +30,15 @@ func initConfig() {
 func start(*cobra.Command, []string) {
 	var wg sync.WaitGroup
 
-	startBlockchainAction(blockchain.MustMonitorFromViper, &wg)
-	startStorageAction(storage.MustMonitorFromViper, &wg)
+	startAction(blockchain.MustMonitorFromViper, &wg)
+	startAction(storage.MustMonitorFromViper, &wg)
 
 	logrus.Warn("Monitoring service started")
 
 	wg.Wait()
 }
 
-func startBlockchainAction(action func(), wg *sync.WaitGroup) {
-	wg.Add(1)
-
-	go func() {
-		defer wg.Done()
-		action()
-	}()
-}
-
-func startStorageAction(action func(), wg *sync.WaitGroup) {
+func startAction(action func(), wg *sync.WaitGroup) {
 	wg.Add(1)
 
 	go func() {
