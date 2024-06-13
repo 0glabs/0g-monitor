@@ -14,7 +14,7 @@ import (
 
 type Config struct {
 	Nodes                  map[string]string
-	Interval               time.Duration `default:"10s"`
+	Interval               time.Duration `default:"600s"`
 	AvailabilityReport     health.TimedCounterConfig
 	NodeHeightReport       HeightReportConfig
 	BlockchainHeightReport health.TimedCounterConfig

@@ -25,7 +25,7 @@ type DBConfig struct {
 }
 
 type Config struct {
-	Interval          time.Duration `default:"10s"`
+	Interval          time.Duration `default:"1800s"`
 	Nodes             map[string]string
 	StorageNodeReport health.TimedCounterConfig
 	DbConfig          DBConfig

@@ -8,7 +8,6 @@ import (
 
 	"github.com/0glabs/0g-storage-client/node"
 	"github.com/Conflux-Chain/go-conflux-util/health"
-	providers "github.com/openweb3/go-rpc-provider/provider_wrapper"
 
 	"github.com/sirupsen/logrus"
 )
@@ -45,11 +44,9 @@ func NewStorageNode(discordId, validatorAddress, ip string) (*StorageNode, error
 	if len(ip) == 0 {
 		return nil, fmt.Errorf("empty ip")
 	}
-	opts := providers.Option{
-		RequestTimeout: 5 * time.Second,
-	}
+	
 	if strings.HasPrefix(ip, "http") {
-		client, err := node.NewClient(ip, opts)
+		client, err := node.NewClient(ip)
 		if err != nil {
 			return nil, err
 		}
@@ -61,11 +58,11 @@ func NewStorageNode(discordId, validatorAddress, ip string) (*StorageNode, error
 		}, nil
 	}
 
-	client, err := node.NewClient("http://"+ip, opts)
+	client, err := node.NewClient("http://"+ip)
 	if err != nil {
 		return nil, err
 	}
-	backupClient, err := node.NewClient("https://"+ip, opts)
+	backupClient, err := node.NewClient("https://"+ip)
 	if err != nil {
 		backupClient = nil
 	}

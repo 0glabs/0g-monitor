@@ -10,7 +10,6 @@ require (
 	github.com/ethereum/go-ethereum v1.10.15
 	github.com/go-gota/gota v0.12.0
 	github.com/go-sql-driver/mysql v1.6.0
-	github.com/openweb3/go-rpc-provider v0.3.2
 	github.com/openweb3/web3go v0.2.7
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.3
@@ -53,6 +52,7 @@ require (
 	github.com/miguelmota/go-ethereum-hdwallet v0.1.1 // indirect
 	github.com/mitchellh/mapstructure v1.4.3 // indirect
 	github.com/olekukonko/tablewriter v0.0.5 // indirect
+	github.com/openweb3/go-rpc-provider v0.3.2 // indirect
 	github.com/openweb3/go-sdk-common v0.0.0-20220720074746-a7134e1d372c // indirect
 	github.com/pelletier/go-toml v1.9.4 // indirect
 	github.com/prometheus/tsdb v0.7.1 // indirect
