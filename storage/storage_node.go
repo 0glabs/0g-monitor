@@ -44,7 +44,7 @@ func NewStorageNode(discordId, validatorAddress, ip string) (*StorageNode, error
 	if len(ip) == 0 {
 		return nil, fmt.Errorf("empty ip")
 	}
-	
+
 	if strings.HasPrefix(ip, "http") {
 		client, err := node.NewClient(ip)
 		if err != nil {
@@ -58,11 +58,11 @@ func NewStorageNode(discordId, validatorAddress, ip string) (*StorageNode, error
 		}, nil
 	}
 
-	client, err := node.NewClient("http://"+ip)
+	client, err := node.NewClient("http://" + ip)
 	if err != nil {
 		return nil, err
 	}
-	backupClient, err := node.NewClient("https://"+ip)
+	backupClient, err := node.NewClient("https://" + ip)
 	if err != nil {
 		backupClient = nil
 	}

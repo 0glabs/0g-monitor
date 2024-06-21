@@ -14,7 +14,7 @@ import (
 
 type Config struct {
 	Nodes                  map[string]string
-	Interval               time.Duration `default:"600s"`
+	Interval               time.Duration `default:"300s"`
 	AvailabilityReport     health.TimedCounterConfig
 	NodeHeightReport       HeightReportConfig
 	BlockchainHeightReport health.TimedCounterConfig
@@ -63,7 +63,12 @@ func Monitor(config Config) {
 	var validators []*Validator
 	for name, address := range config.Validators {
 		logrus.WithField("name", name).WithField("address", address).Debug("Start to monitor validator")
-		validators = append(validators, MustNewValidator(nodes[0].Client, name, address, false))
+		currNode := MustNewValidator(nodes[0].Client, address, address, false)
+		if currNode == nil {
+			logrus.WithField("name", name).WithField("address", address).Error("Failed to create 0g validator")
+			return
+		}
+		validators = append(validators, currNode)
 	}
 
 	// Read the file into a dataframe

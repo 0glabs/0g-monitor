@@ -25,7 +25,7 @@ type DBConfig struct {
 }
 
 type Config struct {
-	Interval          time.Duration `default:"1800s"`
+	Interval          time.Duration `default:"300s"`
 	Nodes             map[string]string
 	StorageNodeReport health.TimedCounterConfig
 	DbConfig          DBConfig
@@ -60,7 +60,12 @@ func Monitor(config Config) {
 	var storageNodes []*StorageNode
 	for name, ip := range config.Nodes {
 		logrus.WithField("name", name).WithField("ip", ip).Debug("Start to monitor storage node")
-		storageNodes = append(storageNodes, MustNewStorageNode(name, name, ip))
+		currNode := MustNewStorageNode(name, name, ip)
+		if currNode == nil {
+			logrus.WithField("name", name).WithField("ip", ip).Error("Failed to create 0g storage node")
+			return
+		}
+		storageNodes = append(storageNodes, currNode)
 	}
 
 	f, err := os.Open(ValidatorFile)
