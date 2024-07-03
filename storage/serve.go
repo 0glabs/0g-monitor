@@ -27,9 +27,17 @@ type DBConfig struct {
 type Config struct {
 	Interval          time.Duration `default:"1800s"`
 	Nodes             map[string]string
+	KvNodes           map[string]string
+	FlowContract      string
+	BlockchainRpc     string
 	StorageNodeReport health.TimedCounterConfig
 	DbConfig          DBConfig
 }
+
+const (
+	NodeDisconnected string = "DISCONNECTED"
+	NodeConnected    string = "CONNECTED"
+)
 
 const ValidatorFile = "data/validator_rpcs.csv"
 const operatorSysLogFile = "log/monitor.log"
@@ -63,6 +71,12 @@ func Monitor(config Config) {
 		storageNodes = append(storageNodes, MustNewStorageNode(name, name, ip))
 	}
 
+	var kvNodes []*KvNode
+	for name, ip := range config.KvNodes {
+		logrus.WithField("name", name).WithField("ip", ip).Debug("Start to monitor kv node")
+		kvNodes = append(kvNodes, MustNewKvNode(name, config.BlockchainRpc, name, ip, config.FlowContract))
+	}
+
 	f, err := os.Open(ValidatorFile)
 	if err != nil {
 		fmt.Println("Error opening csv:", err)
@@ -79,18 +93,29 @@ func Monitor(config Config) {
 
 	// Read the file into a dataframe
 	df := dataframe.ReadCSV(f)
-	var userNodes []*StorageNode
+	var userStorageNodes []*StorageNode
+	var userKvNodes []*KvNode
 	for i := 0; i < df.Nrow(); i++ {
 		discordId := df.Subset(i).Col("discord_id").Elem(0).String()
 		validatorAddress := df.Subset(i).Col("validator_address").Elem(0).String()
-		rpc := df.Subset(i).Col("storage_node_rpc").Elem(0).String()
-		ips := strings.Split(rpc, ",")
+		storage_rpc := df.Subset(i).Col("storage_node_rpc").Elem(0).String()
+		ips := strings.Split(storage_rpc, ",")
 		for _, ip := range ips {
 			ip = strings.TrimSpace(ip)
 			logrus.WithField("discord_id", discordId).WithField("ip", ip).Debug("Start to monitor user storage node")
 			currNode := MustNewStorageNode(discordId, validatorAddress, ip)
 			if currNode != nil {
-				userNodes = append(userNodes, currNode)
+				userStorageNodes = append(userStorageNodes, currNode)
+			}
+		}
+		kv_rpc := df.Subset(i).Col("storage_kv_rpc").Elem(0).String()
+		ips = strings.Split(kv_rpc, ",")
+		for _, ip := range ips {
+			ip = strings.TrimSpace(ip)
+			logrus.WithField("discord_id", discordId).WithField("ip", ip).Debug("Start to monitor user storage node")
+			currNode := MustNewKvNode(discordId, config.BlockchainRpc, validatorAddress, ip, config.FlowContract)
+			if currNode != nil {
+				userKvNodes = append(userKvNodes, currNode)
 			}
 		}
 	}
@@ -100,7 +125,8 @@ func Monitor(config Config) {
 	defer ticker.Stop()
 
 	for range ticker.C {
-		monitorOnce(&config, db, storageNodes, userNodes)
+		monitorStorageNodeOnce(&config, db, storageNodes, userStorageNodes)
+		monitorKvNodeOnce(&config, db, kvNodes, userKvNodes)
 	}
 }
 
@@ -123,7 +149,7 @@ func CreateDBClients(config DBConfig) (*sql.DB, error) {
 	return db, nil
 }
 
-func monitorOnce(config *Config, db *sql.DB, storageNodes []*StorageNode, userNodes []*StorageNode) {
+func monitorStorageNodeOnce(config *Config, db *sql.DB, storageNodes, userNodes []*StorageNode) {
 	for _, v := range storageNodes {
 		v.CheckStatus(config.StorageNodeReport)
 	}
@@ -131,4 +157,18 @@ func monitorOnce(config *Config, db *sql.DB, storageNodes []*StorageNode, userNo
 	for _, v := range userNodes {
 		v.CheckStatusSilence(config.StorageNodeReport, db)
 	}
+}
+
+func monitorKvNodeOnce(config *Config, db *sql.DB, kvNodes, userNodes []*KvNode) {
+	for _, v := range kvNodes {
+		v.CheckStatus(config.StorageNodeReport)
+	}
+
+	for _, v := range userNodes {
+		v.CheckStatusSilence(config.StorageNodeReport, db)
+	}
+}
+
+func PrettyElapsed(elapsed time.Duration) string {
+	return fmt.Sprint(elapsed.Truncate(time.Second))
 }

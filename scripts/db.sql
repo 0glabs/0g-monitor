@@ -12,3 +12,11 @@ CREATE TABLE IF NOT EXISTS user_storage_status (
     status ENUM('CONNECTED', 'DISCONNECTED') NOT NULL,
     PRIMARY KEY (ip)
 );
+
+CREATE TABLE IF NOT EXISTS user_kv_status (
+    ip VARCHAR(255) NOT NULL,
+    discord_id VARCHAR(255) NOT NULL,
+    address VARCHAR(255) NOT NULL,
+    status ENUM('CONNECTED', 'DISCONNECTED') NOT NULL,
+    PRIMARY KEY (ip)
+);

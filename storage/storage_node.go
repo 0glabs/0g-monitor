@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/0glabs/0g-storage-client/node"
 	"github.com/Conflux-Chain/go-conflux-util/health"
@@ -20,11 +19,6 @@ type StorageNode struct {
 	ip               string
 	health           health.TimedCounter
 }
-
-const (
-	StorageNodeDisconnected string = "DISCONNECTED"
-	StorageNodeConnected    string = "CONNECTED"
-)
 
 func MustNewStorageNode(discordId, validatorAddress, ip string) *StorageNode {
 	storageNode, err := NewStorageNode(discordId, validatorAddress, ip)
@@ -44,7 +38,7 @@ func NewStorageNode(discordId, validatorAddress, ip string) (*StorageNode, error
 	if len(ip) == 0 {
 		return nil, fmt.Errorf("empty ip")
 	}
-	
+
 	if strings.HasPrefix(ip, "http") {
 		client, err := node.NewClient(ip)
 		if err != nil {
@@ -58,11 +52,11 @@ func NewStorageNode(discordId, validatorAddress, ip string) (*StorageNode, error
 		}, nil
 	}
 
-	client, err := node.NewClient("http://"+ip)
+	client, err := node.NewClient("http://" + ip)
 	if err != nil {
 		return nil, err
 	}
-	backupClient, err := node.NewClient("https://"+ip)
+	backupClient, err := node.NewClient("https://" + ip)
 	if err != nil {
 		backupClient = nil
 	}
@@ -89,20 +83,20 @@ func (storageNode *StorageNode) CheckStatus(config health.TimedCounterConfig) {
 
 		if unhealthy {
 			logrus.WithFields(logrus.Fields{
-				"elapsed": prettyElapsed(elapsed),
+				"elapsed": PrettyElapsed(elapsed),
 				"ip":      storageNode.ip,
 			}).Error("Storage node disconnected")
 		}
 
 		if unrecovered {
 			logrus.WithFields(logrus.Fields{
-				"elapsed": prettyElapsed(elapsed),
+				"elapsed": PrettyElapsed(elapsed),
 				"ip":      storageNode.ip,
 			}).Error("Storage node disconnected and not recovered yet")
 		}
 	} else if recovered, elapsed := storageNode.health.OnSuccess(config); recovered {
 		logrus.WithFields(logrus.Fields{
-			"elapsed": prettyElapsed(elapsed),
+			"elapsed": PrettyElapsed(elapsed),
 			"ip":      storageNode.ip,
 		}).Warn("Storage node recovered now")
 	}
@@ -128,7 +122,7 @@ func (storageNode *StorageNode) CheckStatusSilence(config health.TimedCounterCon
 		}).Info("Storage node connection failed")
 
 		storageNode.health.OnFailure(config)
-		_, err = db.Exec(upsertQuery, storageNode.ip, storageNode.discordId, storageNode.validatorAddress, StorageNodeDisconnected)
+		_, err = db.Exec(upsertQuery, storageNode.ip, storageNode.discordId, storageNode.validatorAddress, NodeDisconnected)
 		if err != nil {
 			logrus.WithFields(logrus.Fields{
 				"ip": storageNode.ip,
@@ -140,15 +134,11 @@ func (storageNode *StorageNode) CheckStatusSilence(config health.TimedCounterCon
 			"ip":      storageNode.ip,
 		}).Info("Storage node connection succeeded")
 
-		_, err = db.Exec(upsertQuery, storageNode.ip, storageNode.discordId, storageNode.validatorAddress, StorageNodeConnected)
+		_, err = db.Exec(upsertQuery, storageNode.ip, storageNode.discordId, storageNode.validatorAddress, NodeConnected)
 		if err != nil {
 			logrus.WithFields(logrus.Fields{
 				"ip": storageNode.ip,
 			}).Warn("Failed to update storage node status in db")
 		}
 	}
-}
-
-func prettyElapsed(elapsed time.Duration) string {
-	return fmt.Sprint(elapsed.Truncate(time.Second))
 }
