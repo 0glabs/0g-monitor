@@ -119,7 +119,7 @@ func (storageNode *StorageNode) CheckStatusSilence(config health.TimedCounterCon
 		logrus.WithFields(logrus.Fields{
 			"address": storageNode.validatorAddress,
 			"ip":      storageNode.ip,
-		}).Info("Storage node connection failed")
+		}).WithError(err).Info("Storage node connection failed")
 
 		storageNode.health.OnFailure(config)
 		_, err = db.Exec(upsertQuery, storageNode.ip, storageNode.discordId, storageNode.validatorAddress, NodeDisconnected)

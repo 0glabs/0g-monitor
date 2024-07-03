@@ -24,7 +24,11 @@ type Validator struct {
 func MustNewValidator(client *web3go.Client, name, address string, isCommunity bool) *Validator {
 	validator, err := NewValidator(client, name, address, isCommunity)
 	if err != nil {
-		logrus.WithError(err).Fatal("Failed to create validator")
+		logrus.WithFields(logrus.Fields{
+			"name":    name,
+			"address": address,
+		}).WithError(err).Info("Failed to create validator node")
+		return nil
 	}
 
 	return validator

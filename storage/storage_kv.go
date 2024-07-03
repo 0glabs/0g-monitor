@@ -5,36 +5,23 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/0glabs/0g-storage-client/contract"
-	"github.com/0glabs/0g-storage-client/kv"
 	"github.com/0glabs/0g-storage-client/node"
 	"github.com/Conflux-Chain/go-conflux-util/health"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/openweb3/web3go"
 
 	"github.com/sirupsen/logrus"
 )
 
 type KvNode struct {
-	client           *kv.Client
-	backupClient     *kv.Client
+	client           *node.Client
+	backupClient     *node.Client
 	discordId        string
 	validatorAddress string
 	ip               string
 	health           health.TimedCounter
 }
 
-func MustNewKvNode(discordId, rpc, validatorAddress, ip, flowContractAddress string) *KvNode {
-	address := common.Address(common.HexToAddress(flowContractAddress))
-	web3Client, err := web3go.NewClient(rpc)
-	if err != nil {
-		logrus.WithFields(logrus.Fields{
-			"address": validatorAddress,
-			"ip":      ip,
-		}).WithError(err).Info("Failed to create kv node")
-		return nil
-	}
-	flowContract, err := contract.NewFlowContract(address, web3Client)
+func MustNewKvNode(discordId, validatorAddress, ip string) *KvNode {
+	storageNode, err := NewKvNode(discordId, validatorAddress, ip)
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
 			"address": validatorAddress,
@@ -43,19 +30,10 @@ func MustNewKvNode(discordId, rpc, validatorAddress, ip, flowContractAddress str
 		return nil
 	}
 
-	kvNode, err := NewKvNode(discordId, validatorAddress, ip, flowContract)
-	if err != nil {
-		logrus.WithFields(logrus.Fields{
-			"address": validatorAddress,
-			"ip":      ip,
-		}).WithError(err).Info("Failed to create kv node")
-		return nil
-	}
-
-	return kvNode
+	return storageNode
 }
 
-func NewKvNode(discordId, validatorAddress, ip string, flow *contract.FlowContract) (*KvNode, error) {
+func NewKvNode(discordId, validatorAddress, ip string) (*KvNode, error) {
 	ip = strings.TrimSpace(ip)
 	if len(ip) == 0 {
 		return nil, fmt.Errorf("empty ip")
@@ -67,7 +45,7 @@ func NewKvNode(discordId, validatorAddress, ip string, flow *contract.FlowContra
 			return nil, err
 		}
 		return &KvNode{
-			client:           kv.NewClient(client, flow),
+			client:           client,
 			discordId:        discordId,
 			validatorAddress: validatorAddress,
 			ip:               ip,
@@ -84,8 +62,8 @@ func NewKvNode(discordId, validatorAddress, ip string, flow *contract.FlowContra
 	}
 
 	return &KvNode{
-		client:           kv.NewClient(client, flow),
-		backupClient:     kv.NewClient(backupClient, flow),
+		client:           client,
+		backupClient:     backupClient,
 		discordId:        discordId,
 		validatorAddress: validatorAddress,
 		ip:               ip,
@@ -93,7 +71,7 @@ func NewKvNode(discordId, validatorAddress, ip string, flow *contract.FlowContra
 }
 
 func (kvNode *KvNode) CheckStatus(config health.TimedCounterConfig) {
-	_, err := kvNode.client.GetHoldingStreamIds()
+	_, err := kvNode.client.KV().GetHoldingStreamIds()
 	if logrus.IsLevelEnabled(logrus.DebugLevel) {
 		logrus.WithFields(logrus.Fields{
 			"ip": kvNode.ip,
@@ -132,16 +110,16 @@ func (kvNode *KvNode) CheckStatusSilence(config health.TimedCounterConfig, db *s
         status = VALUES(status)
 	`
 
-	_, err := kvNode.client.GetHoldingStreamIds()
+	_, err := kvNode.client.KV().GetHoldingStreamIds()
 	if err != nil && kvNode.backupClient != nil {
-		_, err = kvNode.backupClient.GetHoldingStreamIds()
+		_, err = kvNode.client.KV().GetHoldingStreamIds()
 	}
 
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
 			"address": kvNode.validatorAddress,
 			"ip":      kvNode.ip,
-		}).Info("Kv node connection failed")
+		}).WithError(err).Info("Kv node connection failed")
 
 		kvNode.health.OnFailure(config)
 		_, err = db.Exec(upsertQuery, kvNode.ip, kvNode.discordId, kvNode.validatorAddress, NodeDisconnected)

@@ -28,8 +28,6 @@ type Config struct {
 	Interval          time.Duration `default:"1800s"`
 	Nodes             map[string]string
 	KvNodes           map[string]string
-	FlowContract      string
-	BlockchainRpc     string
 	StorageNodeReport health.TimedCounterConfig
 	DbConfig          DBConfig
 }
@@ -74,7 +72,7 @@ func Monitor(config Config) {
 	var kvNodes []*KvNode
 	for name, ip := range config.KvNodes {
 		logrus.WithField("name", name).WithField("ip", ip).Debug("Start to monitor kv node")
-		kvNodes = append(kvNodes, MustNewKvNode(name, config.BlockchainRpc, name, ip, config.FlowContract))
+		kvNodes = append(kvNodes, MustNewKvNode(name, name, ip))
 	}
 
 	f, err := os.Open(ValidatorFile)
@@ -112,8 +110,8 @@ func Monitor(config Config) {
 		ips = strings.Split(kv_rpc, ",")
 		for _, ip := range ips {
 			ip = strings.TrimSpace(ip)
-			logrus.WithField("discord_id", discordId).WithField("ip", ip).Debug("Start to monitor user storage node")
-			currNode := MustNewKvNode(discordId, config.BlockchainRpc, validatorAddress, ip, config.FlowContract)
+			logrus.WithField("discord_id", discordId).WithField("ip", ip).Debug("Start to monitor user kv node")
+			currNode := MustNewKvNode(discordId, validatorAddress, ip)
 			if currNode != nil {
 				userKvNodes = append(userKvNodes, currNode)
 			}
@@ -125,7 +123,7 @@ func Monitor(config Config) {
 	defer ticker.Stop()
 
 	for range ticker.C {
-		monitorStorageNodeOnce(&config, db, storageNodes, userStorageNodes)
+		// monitorStorageNodeOnce(&config, db, storageNodes, userStorageNodes)
 		monitorKvNodeOnce(&config, db, kvNodes, userKvNodes)
 	}
 }

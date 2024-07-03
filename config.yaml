@@ -102,8 +102,6 @@
 #   kvNodes:
 #     node0: http://ip0:6789
 #     node1: http://ip1:6789
-#   flowContract: 0x
-#   blockchainRpc: "http://ip:8545"
 #   interval: 600s
 #   storageNodeReport:
 #     threshold: 120m
