@@ -1,4 +1,4 @@
-package storage
+package da
 
 import (
 	"database/sql"
@@ -64,7 +64,7 @@ func (daNode *DaNode) CheckStatusSilence(config health.TimedCounterConfig, db *s
 		logrus.WithFields(logrus.Fields{
 			"address": daNode.validatorAddress,
 			"ip":      daNode.ip,
-		}).Info("Storage node connection succeeded")
+		}).Info("Da node connection succeeded")
 
 		_, err = db.Exec(upsertQuery, daNode.ip, daNode.discordId, daNode.validatorAddress, NodeConnected)
 		if err != nil {
