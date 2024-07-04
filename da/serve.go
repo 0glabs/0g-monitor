@@ -25,11 +25,10 @@ type DBConfig struct {
 }
 
 type Config struct {
-	Interval          time.Duration `default:"1800s"`
-	Nodes             map[string]string
-	KvNodes           map[string]string
-	StorageNodeReport health.TimedCounterConfig
-	DbConfig          DBConfig
+	Interval       time.Duration `default:"60s"`
+	DaNodeReport   health.TimedCounterConfig
+	DaClientReport health.TimedCounterConfig
+	DbConfig       DBConfig
 }
 
 const (
@@ -42,7 +41,7 @@ const operatorSysLogFile = "log/monitor.log"
 
 func MustMonitorFromViper() {
 	var config Config
-	viper.MustUnmarshalKey("storage", &config)
+	viper.MustUnmarshalKey("da", &config)
 	Monitor(config)
 }
 
@@ -71,7 +70,10 @@ func Monitor(config Config) {
 
 	// Read the file into a dataframe
 	df := dataframe.ReadCSV(f)
+
 	var userDaNodes []*DaNode
+	var userDaClients []*DaClient
+
 	for i := 0; i < df.Nrow(); i++ {
 		discordId := df.Subset(i).Col("discord_id").Elem(0).String()
 		validatorAddress := df.Subset(i).Col("validator_address").Elem(0).String()
@@ -85,7 +87,16 @@ func Monitor(config Config) {
 				userDaNodes = append(userDaNodes, currNode)
 			}
 		}
-
+		da_client_grpc := df.Subset(i).Col("da_client_grpc").Elem(0).String()
+		ips = strings.Split(da_client_grpc, ",")
+		for _, ip := range ips {
+			ip = strings.TrimSpace(ip)
+			logrus.WithField("discord_id", discordId).WithField("ip", ip).Debug("Start to monitor user da client")
+			currNode := MustNewDaClient(discordId, validatorAddress, ip)
+			if currNode != nil {
+				userDaClients = append(userDaClients, currNode)
+			}
+		}
 	}
 
 	// Monitor node status periodically
@@ -93,7 +104,7 @@ func Monitor(config Config) {
 	defer ticker.Stop()
 
 	for range ticker.C {
-		monitorOnce(&config, db, userDaNodes)
+		monitorOnce(&config, db, userDaNodes, userDaClients)
 	}
 }
 
@@ -116,8 +127,12 @@ func CreateDBClients(config DBConfig) (*sql.DB, error) {
 	return db, nil
 }
 
-func monitorOnce(config *Config, db *sql.DB, userNodes []*DaNode) {
+func monitorOnce(config *Config, db *sql.DB, userNodes []*DaNode, userClients []*DaClient) {
 	for _, v := range userNodes {
-		v.CheckStatusSilence(config.StorageNodeReport, db)
+		v.CheckStatusSilence(config.DaNodeReport, db)
+	}
+
+	for _, v := range userClients {
+		v.CheckStatusSilence(config.DaClientReport, db)
 	}
 }

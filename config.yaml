@@ -112,3 +112,10 @@
 #     host: localhost
 #     port: 3306
 #     dbName: storage_service
+# da:
+#   daNodeReport:
+#     threshold: 120m
+#     remind: 120m
+#   daClientReport:
+#     threshold: 120m
+#     remind: 120m

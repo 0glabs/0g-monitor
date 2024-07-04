@@ -6,7 +6,7 @@ import (
 	"context"
 	"time"
 
-	pb "github.com/0glabs/0g-monitor/proto"
+	pb "github.com/0glabs/0g-monitor/proto/da-node"
 	"github.com/Conflux-Chain/go-conflux-util/health"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -39,13 +39,13 @@ func (daNode *DaNode) CheckStatusSilence(config health.TimedCounterConfig, db *s
 	`
 
 	conn, err := grpc.NewClient(daNode.ip, []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}...)
-    if err == nil {
+	if err == nil {
 		c := pb.NewSignerClient(conn)
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second * 5)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer cancel()
 		_, err = c.GetStatus(ctx, &pb.Empty{})
 	}
-    defer conn.Close()
+	defer conn.Close()
 
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
