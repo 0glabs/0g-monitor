@@ -25,7 +25,7 @@ type DBConfig struct {
 }
 
 type Config struct {
-	Interval          time.Duration `default:"60s"`
+	Interval          time.Duration `default:"7200s"`
 	Nodes             map[string]string
 	KvNodes           map[string]string
 	StorageNodeReport health.TimedCounterConfig
@@ -37,6 +37,7 @@ const (
 	NodeConnected    string = "CONNECTED"
 )
 
+const DefaultTimeout = 2
 const ValidatorFile = "data/validator_rpcs.csv"
 const operatorSysLogFile = "log/monitor.log"
 
@@ -59,9 +60,9 @@ func Monitor(config Config) {
 		"storage_nodes": len(config.Nodes),
 	}).Info("Start to monitor storage services")
 
-	if len(config.Nodes) == 0 {
-		return
-	}
+	logrus.WithFields(logrus.Fields{
+		"storage_kv": len(config.KvNodes),
+	}).Info("Start to monitor kv services")
 
 	var storageNodes []*StorageNode
 	for name, ip := range config.Nodes {
@@ -100,6 +101,9 @@ func Monitor(config Config) {
 		ips := strings.Split(storage_rpc, ",")
 		for _, ip := range ips {
 			ip = strings.TrimSpace(ip)
+			if len(ip) == 0 {
+				continue
+			}
 			logrus.WithField("discord_id", discordId).WithField("ip", ip).Debug("Start to monitor user storage node")
 			currNode := MustNewStorageNode(discordId, validatorAddress, ip)
 			if currNode != nil {
@@ -110,6 +114,9 @@ func Monitor(config Config) {
 		ips = strings.Split(kv_rpc, ",")
 		for _, ip := range ips {
 			ip = strings.TrimSpace(ip)
+			if len(ip) == 0 {
+				continue
+			}
 			logrus.WithField("discord_id", discordId).WithField("ip", ip).Debug("Start to monitor user kv node")
 			currNode := MustNewKvNode(discordId, validatorAddress, ip)
 			if currNode != nil {

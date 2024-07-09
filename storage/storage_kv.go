@@ -7,6 +7,7 @@ import (
 
 	"github.com/0glabs/0g-storage-client/node"
 	"github.com/Conflux-Chain/go-conflux-util/health"
+	providers "github.com/openweb3/go-rpc-provider/provider_wrapper"
 
 	"github.com/sirupsen/logrus"
 )
@@ -52,11 +53,15 @@ func NewKvNode(discordId, validatorAddress, ip string) (*KvNode, error) {
 		}, nil
 	}
 
-	client, err := node.NewClient("http://" + ip)
+	client, err := node.NewClient("http://"+ip, providers.Option{
+		RequestTimeout: DefaultTimeout,
+	})
 	if err != nil {
 		return nil, err
 	}
-	backupClient, err := node.NewClient("https://" + ip)
+	backupClient, err := node.NewClient("https://"+ip, providers.Option{
+		RequestTimeout: DefaultTimeout,
+	})
 	if err != nil {
 		backupClient = nil
 	}
