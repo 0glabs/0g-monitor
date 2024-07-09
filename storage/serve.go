@@ -25,7 +25,7 @@ type DBConfig struct {
 }
 
 type Config struct {
-	Interval          time.Duration `default:"1800s"`
+	Interval          time.Duration `default:"60s"`
 	Nodes             map[string]string
 	KvNodes           map[string]string
 	StorageNodeReport health.TimedCounterConfig
@@ -123,7 +123,7 @@ func Monitor(config Config) {
 	defer ticker.Stop()
 
 	for range ticker.C {
-		// monitorStorageNodeOnce(&config, db, storageNodes, userStorageNodes)
+		monitorStorageNodeOnce(&config, db, storageNodes, userStorageNodes)
 		monitorKvNodeOnce(&config, db, kvNodes, userKvNodes)
 	}
 }
