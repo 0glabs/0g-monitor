@@ -137,6 +137,6 @@ func (validator *Validator) CheckStatusSilence() {
 		logrus.WithFields(logrus.Fields{
 			"address": validator.name,
 			"ip":      validator.address,
-		}).Error("Validator connection failed")
+		}).Info("Validator connection failed")
 	}
 }
