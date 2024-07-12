@@ -37,7 +37,7 @@ const (
 	NodeConnected    string = "CONNECTED"
 )
 
-const DefaultTimeout = 2
+const DefaultTimeout = 2 * time.Second
 const ValidatorFile = "data/validator_rpcs.csv"
 const operatorSysLogFile = "log/monitor.log"
 

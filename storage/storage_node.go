@@ -56,14 +56,21 @@ func NewStorageNode(discordId, validatorAddress, ip string) (*StorageNode, error
 	client, err := node.NewClient("http://"+ip, providers.Option{
 		RequestTimeout: DefaultTimeout,
 	})
+
 	if err != nil {
-		return nil, err
+		client = nil
 	}
+
 	backupClient, err := node.NewClient("https://"+ip, providers.Option{
 		RequestTimeout: DefaultTimeout,
 	})
+
 	if err != nil {
 		backupClient = nil
+	}
+
+	if client == nil && backupClient == nil {
+		return nil, fmt.Errorf("failed to create client")
 	}
 
 	return &StorageNode{
