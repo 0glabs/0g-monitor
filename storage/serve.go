@@ -50,8 +50,8 @@ func MustMonitorFromViper() {
 func Monitor(config Config) {
 	lumberjackLogger := &lumberjack.Logger{
 		Filename: operatorSysLogFile,
-		MaxSize:  20, // MB
-		MaxAge:   30, // days
+		MaxSize:  500, // MB
+		MaxAge:   300, // days
 		Compress: false,
 	}
 	logrus.SetOutput(io.MultiWriter(os.Stdout, lumberjackLogger))
