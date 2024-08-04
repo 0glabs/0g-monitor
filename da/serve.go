@@ -25,7 +25,7 @@ type DBConfig struct {
 }
 
 type Config struct {
-	Interval       time.Duration `default:"60s"`
+	Interval       time.Duration `default:"600s"`
 	DaNodeReport   health.TimedCounterConfig
 	DaClientReport health.TimedCounterConfig
 	DbConfig       DBConfig
@@ -48,8 +48,8 @@ func MustMonitorFromViper() {
 func Monitor(config Config) {
 	lumberjackLogger := &lumberjack.Logger{
 		Filename: operatorSysLogFile,
-		MaxSize:  20, // MB
-		MaxAge:   30, // days
+		MaxSize:  500, // MB
+		MaxAge:   300, // days
 		Compress: false,
 	}
 	logrus.SetOutput(io.MultiWriter(os.Stdout, lumberjackLogger))
@@ -87,16 +87,16 @@ func Monitor(config Config) {
 				userDaNodes = append(userDaNodes, currNode)
 			}
 		}
-		da_client_grpc := df.Subset(i).Col("da_client_grpc").Elem(0).String()
-		ips = strings.Split(da_client_grpc, ",")
-		for _, ip := range ips {
-			ip = strings.TrimSpace(ip)
-			logrus.WithField("discord_id", discordId).WithField("ip", ip).Debug("Start to monitor user da client")
-			currNode := MustNewDaClient(discordId, validatorAddress, ip)
-			if currNode != nil {
-				userDaClients = append(userDaClients, currNode)
-			}
-		}
+		// da_client_grpc := df.Subset(i).Col("da_client_grpc").Elem(0).String()
+		// ips = strings.Split(da_client_grpc, ",")
+		// for _, ip := range ips {
+		// 	ip = strings.TrimSpace(ip)
+		// 	logrus.WithField("discord_id", discordId).WithField("ip", ip).Debug("Start to monitor user da client")
+		// 	currNode := MustNewDaClient(discordId, validatorAddress, ip)
+		// 	if currNode != nil {
+		// 		userDaClients = append(userDaClients, currNode)
+		// 	}
+		// }
 	}
 
 	// Monitor node status periodically

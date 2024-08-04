@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/0glabs/0g-monitor/blockchain"
+	"github.com/0glabs/0g-monitor/da"
 	"github.com/0glabs/0g-monitor/storage"
 	"github.com/Conflux-Chain/go-conflux-util/config"
 	"github.com/Conflux-Chain/go-conflux-util/log"
@@ -32,6 +33,7 @@ func start(*cobra.Command, []string) {
 
 	startAction(blockchain.MustMonitorFromViper, &wg)
 	startAction(storage.MustMonitorFromViper, &wg)
+	startAction(da.MustMonitorFromViper, &wg)
 
 	logrus.Warn("Monitoring service started")
 

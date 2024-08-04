@@ -39,13 +39,14 @@ func (daNode *DaNode) CheckStatusSilence(config health.TimedCounterConfig, db *s
 	`
 
 	conn, err := grpc.NewClient(daNode.ip, []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}...)
+
 	if err == nil {
+		defer conn.Close()
 		c := pb.NewSignerClient(conn)
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer cancel()
 		_, err = c.GetStatus(ctx, &pb.Empty{})
 	}
-	defer conn.Close()
 
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
