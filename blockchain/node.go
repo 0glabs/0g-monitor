@@ -21,7 +21,9 @@ type Node struct {
 	name string
 	url  string
 
-	height uint64 // fullnode block number
+	height         uint64 // fullnode block number
+	updateTime     time.Time
+	livenessHealth health.TimedCounter
 
 	rpcHealth health.TimedCounter
 	rpcError  string // last rpc error message
@@ -31,9 +33,10 @@ type Node struct {
 
 func MustNewNode(name, url string) *Node {
 	return &Node{
-		Client: web3go.MustNewClient(url),
-		name:   name,
-		url:    url,
+		Client:     web3go.MustNewClient(url),
+		name:       name,
+		url:        url,
+		updateTime: time.Now(),
 	}
 }
 
@@ -73,7 +76,40 @@ func (node *Node) UpdateHeight(config health.TimedCounterConfig) {
 			}).Warn("Block reorg detected")
 		}
 
-		node.height = bn.Uint64()
+		now := time.Now()
+		if node.height != bn.Uint64() {
+			node.height = bn.Uint64()
+			node.updateTime = now
+
+			if recovered, elapsed := node.livenessHealth.OnSuccess(config); recovered {
+				logrus.WithFields(logrus.Fields{
+					"node":    node.name,
+					"elapsed": prettyElapsed(elapsed),
+				}).Warn("Node is making progress now")
+			}
+		} else {
+			elapsed := now.Sub(node.updateTime)
+			if elapsed > 180*time.Second {
+				unhealthy, unrecovered, elapsed := node.livenessHealth.OnFailure(config)
+
+				// report unhealthy
+				if unhealthy {
+					logrus.WithFields(logrus.Fields{
+						"node":    node.name,
+						"elapsed": prettyElapsed(elapsed),
+					}).Error("Node is not making progress")
+				}
+
+				// remind unhealthy
+				if unrecovered {
+					logrus.WithFields(logrus.Fields{
+						"node":    node.name,
+						"elapsed": prettyElapsed(elapsed),
+					}).Error("Node is not making progress")
+				}
+			}
+		}
+
 		node.rpcError = ""
 
 		// report on recovered
