@@ -25,7 +25,7 @@ type DBConfig struct {
 }
 
 type Config struct {
-	Interval       time.Duration `default:"600s"`
+	Interval       time.Duration `default:"10s"`
 	DaNodeReport   health.TimedCounterConfig
 	DaClientReport health.TimedCounterConfig
 	DbConfig       DBConfig
@@ -81,6 +81,9 @@ func Monitor(config Config) {
 		ips := strings.Split(da_node_grpc, ",")
 		for _, ip := range ips {
 			ip = strings.TrimSpace(ip)
+			if ip == "" {
+				continue
+			}
 			logrus.WithField("discord_id", discordId).WithField("ip", ip).Debug("Start to monitor user da node")
 			currNode := MustNewDaNode(discordId, validatorAddress, ip)
 			if currNode != nil {
