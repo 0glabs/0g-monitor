@@ -115,7 +115,9 @@ func Monitor(config Config) {
 	defer ticker.Stop()
 
 	for range ticker.C {
+		ticker.Stop()
 		monitorOnce(&config, userDaClients)
+		ticker.Reset(config.Interval)
 	}
 }
 

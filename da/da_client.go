@@ -57,21 +57,23 @@ func (daClient *DaClient) Close() {
 }
 
 func (daClient *DaClient) CheckStatusSilence(config health.TimedCounterConfig) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
-	defer cancel()
-
 	var err error
 	var statusReply *pb.BlobStatusReply
 
 	if daClient.requestId == nil || daClient.counter >= 20 {
-		statusReply, err = daClient.DisperseNewBlob(ctx)
+		statusReply, err = daClient.DisperseNewBlob()
 		if err == nil {
 			daClient.counter = 0
 		}
 	} else {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+		defer cancel()
+
 		statusReply, err = daClient.client.GetBlobStatus(
 			ctx,
-			&pb.BlobStatusRequest{RequestId: []byte("a1e97acdaf863a0be73ada65895145a6ef6b5a9d332c2ee40aca2018b34d40dd-313732333130303737373830343536323933322fe3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")},
+			&pb.BlobStatusRequest{
+				RequestId: daClient.requestId,
+			},
 		)
 
 		daClient.counter += 1
@@ -116,18 +118,22 @@ func (daClient *DaClient) CheckStatusSilence(config health.TimedCounterConfig) {
 				}).Warn("DA client RPC is healthy now")
 			}
 
-			logrus.Debug("Blob status is expected")
+			logrus.WithField("request id", daClient.requestId).Debug("Blob status is expected")
 		}
 	}
 }
 
-func (daClient *DaClient) DisperseNewBlob(ctx context.Context) (*pb.BlobStatusReply, error) {
+func (daClient *DaClient) DisperseNewBlob() (*pb.BlobStatusReply, error) {
+	logrus.Debug("Disperse new blob")
 	byteArray := make([]byte, 100)
 
 	_, err := rand.Read(byteArray)
 	if err != nil {
 		return nil, fmt.Errorf("an error occurred when rand bytes: %w", err)
 	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*180)
+	defer cancel()
 
 	blobReply, err := daClient.client.DisperseBlob(ctx, &pb.DisperseBlobRequest{Data: byteArray})
 	if err != nil {
@@ -137,6 +143,9 @@ func (daClient *DaClient) DisperseNewBlob(ctx context.Context) (*pb.BlobStatusRe
 	daClient.requestId = blobReply.GetRequestId()
 	retryCount := 0
 	for {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+		defer cancel()
+
 		statusReply, err := daClient.client.GetBlobStatus(ctx, &pb.BlobStatusRequest{
 			RequestId: daClient.requestId,
 		})
@@ -157,7 +166,7 @@ func (daClient *DaClient) DisperseNewBlob(ctx context.Context) (*pb.BlobStatusRe
 			return nil, fmt.Errorf("failed to get the status of the new disperse blob; retry limit reached")
 		}
 
-		time.Sleep(3 * time.Second)
+		time.Sleep(10 * time.Second)
 	}
 }
 
