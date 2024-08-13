@@ -9,6 +9,7 @@ import (
 	"github.com/Conflux-Chain/go-conflux-util/health"
 	"github.com/Conflux-Chain/go-conflux-util/viper"
 	"github.com/go-gota/gota/dataframe"
+	"github.com/openweb3/web3go"
 	"github.com/sirupsen/logrus"
 )
 
@@ -24,6 +25,7 @@ type Config struct {
 }
 
 const ValidatorFile = "data/validator_rpcs.csv"
+const BlockChainRpc = "https://evmrpc-test-us.0g.ai"
 
 func MustMonitorFromViper() {
 	var config Config
@@ -37,9 +39,9 @@ func Monitor(config Config) {
 		"validators": len(config.Validators),
 	}).Info("Start to monitor blockchain")
 
-	if len(config.Nodes) == 0 {
-		return
-	}
+	// if len(config.Nodes) == 0 {
+	// 	return
+	// }
 
 	f, err := os.Open(ValidatorFile)
 	if err != nil {
@@ -60,10 +62,12 @@ func Monitor(config Config) {
 		}
 	}()
 
+	client := web3go.MustNewClient(BlockChainRpc)
+
 	var validators []*Validator
 	for name, address := range config.Validators {
 		logrus.WithField("name", name).WithField("address", address).Debug("Start to monitor validator")
-		validators = append(validators, MustNewValidator(nodes[0].Client, name, address, false))
+		validators = append(validators, MustNewValidator(client, name, address, false))
 	}
 
 	// Read the file into a dataframe
@@ -77,7 +81,7 @@ func Monitor(config Config) {
 		for _, ip := range ips {
 			ip = strings.TrimSpace(ip)
 			logrus.WithField("discord_id", discordId).WithField("ip", ip).Debug("Start to monitor user validator node")
-			currNode := MustNewValidator(nodes[0].Client, validatorAddress, ip, true)
+			currNode := MustNewValidator(client, validatorAddress, ip, true)
 			if currNode != nil {
 				userNodes = append(userNodes, currNode)
 			}
