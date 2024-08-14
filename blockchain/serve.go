@@ -10,7 +10,6 @@ import (
 	"github.com/Conflux-Chain/go-conflux-util/health"
 	"github.com/Conflux-Chain/go-conflux-util/viper"
 	"github.com/go-gota/gota/dataframe"
-	"github.com/openweb3/web3go"
 	"github.com/sirupsen/logrus"
 )
 
@@ -58,8 +57,6 @@ func Monitor(config Config) {
 		logrus.WithField("name", name).WithField("url", url).Debug("Start to monitor fullnode")
 		nodes = append(nodes, MustNewNode(name, url))
 	}
-
-	client := web3go.MustNewClient(BlockChainRpc)
 
 	var validators []*Validator
 	url, _ := url.Parse(config.CosmosRPC)
