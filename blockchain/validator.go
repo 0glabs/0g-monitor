@@ -1,28 +1,27 @@
 package blockchain
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/url"
 	"strings"
 
-	"github.com/0glabs/0g-monitor/blockchain/contracts"
 	"github.com/Conflux-Chain/go-conflux-util/health"
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/go-resty/resty/v2"
 	"github.com/openweb3/web3go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
-var precompileStaking = common.HexToAddress("0x0000000000000000000000000000000000000800")
-
 type Validator struct {
-	staking *contracts.StakingCaller
+	url     string
 	name    string
 	address string
 	health  health.TimedCounter
 }
 
-func MustNewValidator(client *web3go.Client, name, address string, isCommunity bool) *Validator {
-	validator, err := NewValidator(client, name, address, isCommunity)
+func MustNewValidator(url *url.URL, name, address string, isCommunity bool) *Validator {
+	validator, err := NewValidator(url, name, address, isCommunity)
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
 			"name":    name,
@@ -34,27 +33,23 @@ func MustNewValidator(client *web3go.Client, name, address string, isCommunity b
 	return validator
 }
 
-func NewValidator(client *web3go.Client, name, address string, isCommunity bool) (*Validator, error) {
+func NewValidator(url *url.URL, name, address string, isCommunity bool) (*Validator, error) {
 	address = strings.TrimSpace(address)
 	if len(address) == 0 {
 		return nil, errors.New("empty address")
 	}
 	if isCommunity {
+		url.Path = "/cosmos/staking/v1beta1/validators/" + address
 		return &Validator{
-			staking: nil,
+			url:     url.String(),
 			name:    name,
 			address: address,
 		}, nil
 	}
 
-	caller, _ := client.ToClientForContract()
-	staking, err := contracts.NewStakingCaller(precompileStaking, caller)
-	if err != nil {
-		return nil, errors.WithMessage(err, "Failed to new staking caller")
-	}
-
+	url.Path = "/cosmos/staking/v1beta1/validators/" + address
 	return &Validator{
-		staking: staking,
+		url:     url.String(),
 		name:    name,
 		address: address,
 	}, nil
@@ -69,20 +64,24 @@ func (validator Validator) String() string {
 }
 
 func (validator *Validator) Update(config health.TimedCounterConfig) {
-	info, err := validator.staking.Validator(nil, validator.address)
-	if err != nil {
+	client := resty.New()
+	var result map[string]interface{}
+	resp, err := client.R().SetResult(&result).Get(validator.url)
+	if err != nil || resp.StatusCode() != 200 {
 		logrus.WithError(err).WithField("validator", validator.String()).Info("Failed to query validator info")
 		return
 	}
+	jailed := result["validator"].(map[string]interface{})["jailed"].(bool)
 
 	if logrus.IsLevelEnabled(logrus.DebugLevel) {
+		jsonStr, _ := json.Marshal(result)
 		logrus.WithFields(logrus.Fields{
 			"validator": validator.String(),
-			"info":      fmt.Sprintf("%+v", info),
+			"info":      fmt.Sprintf("%+v", jsonStr),
 		}).Debug("Validator status report")
 	}
 
-	if len(info.OperatorAddress) == 0 || info.Jailed {
+	if jailed {
 		unhealthy, unrecovered, elapsed := validator.health.OnFailure(config)
 
 		if unhealthy {

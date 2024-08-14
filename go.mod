@@ -7,7 +7,6 @@ toolchain go1.21.6
 require (
 	github.com/0glabs/0g-storage-client v0.1.15
 	github.com/Conflux-Chain/go-conflux-util v0.2.1
-	github.com/ethereum/go-ethereum v1.10.15
 	github.com/go-gota/gota v0.12.0
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/openweb3/web3go v0.2.7
@@ -18,7 +17,10 @@ require (
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 )
 
-require google.golang.org/genproto/googleapis/rpc v0.0.0-20240701130421-f6361c86f094 // indirect
+require (
+	github.com/ethereum/go-ethereum v1.10.15 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240701130421-f6361c86f094 // indirect
+)
 
 require (
 	github.com/StackExchange/wmi v0.0.0-20180116203802-5d049714c4a6 // indirect
@@ -32,6 +34,7 @@ require (
 	github.com/fatih/color v1.13.0 // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/go-ole/go-ole v1.2.1 // indirect
+	github.com/go-resty/resty/v2 v2.14.0
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/go-telegram/bot v1.2.2 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
@@ -55,7 +58,7 @@ require (
 	github.com/miguelmota/go-ethereum-hdwallet v0.1.1 // indirect
 	github.com/mitchellh/mapstructure v1.4.3 // indirect
 	github.com/olekukonko/tablewriter v0.0.5 // indirect
-	github.com/openweb3/go-rpc-provider v0.3.2 // indirect
+	github.com/openweb3/go-rpc-provider v0.3.2
 	github.com/openweb3/go-sdk-common v0.0.0-20220720074746-a7134e1d372c // indirect
 	github.com/pelletier/go-toml v1.9.4 // indirect
 	github.com/prometheus/tsdb v0.7.1 // indirect
@@ -73,10 +76,10 @@ require (
 	github.com/tyler-smith/go-bip39 v1.0.1-0.20181017060643-dbb3b84ba2ef // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasthttp v1.33.0 // indirect
-	golang.org/x/crypto v0.23.0 // indirect
-	golang.org/x/net v0.25.0 // indirect
-	golang.org/x/sys v0.20.0 // indirect
-	golang.org/x/text v0.15.0 // indirect
+	golang.org/x/crypto v0.25.0 // indirect
+	golang.org/x/net v0.27.0 // indirect
+	golang.org/x/sys v0.22.0 // indirect
+	golang.org/x/text v0.16.0 // indirect
 	gonum.org/v1/gonum v0.9.1 // indirect
 	google.golang.org/grpc v1.65.0
 	gopkg.in/ini.v1 v1.66.2 // indirect

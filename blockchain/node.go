@@ -2,10 +2,12 @@ package blockchain
 
 import (
 	"fmt"
+	"net/url"
+	"strconv"
 	"time"
 
 	"github.com/Conflux-Chain/go-conflux-util/health"
-	"github.com/openweb3/web3go"
+	"github.com/go-resty/resty/v2"
 	"github.com/sirupsen/logrus"
 )
 
@@ -16,8 +18,6 @@ type HeightReportConfig struct {
 }
 
 type Node struct {
-	*web3go.Client
-
 	name string
 	url  string
 
@@ -29,16 +29,31 @@ type Node struct {
 	heightHealth health.TimedCounter
 }
 
-func MustNewNode(name, url string) *Node {
+func MustNewNode(name, urlstr string) *Node {
+	url, _ := url.Parse(urlstr)
+	url.Path = "status"
 	return &Node{
-		Client: web3go.MustNewClient(url),
-		name:   name,
-		url:    url,
+		name: name,
+		url:  url.String(),
 	}
 }
 
+func fetchHeight(url string) (uint64, error) {
+	var result map[string]interface{}
+	client := resty.New()
+	resp, err := client.R().SetResult(&result).Get(url)
+	if err != nil || resp.IsError() {
+		return 0, err
+	}
+	height, err := strconv.Atoi(result["result"].(map[string]interface{})["sync_info"].(map[string]interface{})["latest_block_height"].(string))
+	if err != nil {
+		return 0, err
+	}
+	return uint64(height), nil
+}
+
 func (node *Node) UpdateHeight(config health.TimedCounterConfig) {
-	bn, err := node.Eth.BlockNumber()
+	height, err := fetchHeight(node.url)
 	if err != nil {
 		logrus.WithError(err).WithField("node", node.name).Debug("Failed to query block number")
 
@@ -64,16 +79,16 @@ func (node *Node) UpdateHeight(config health.TimedCounterConfig) {
 		}
 	} else {
 		// check reorg
-		if bn.Uint64() < node.height {
+		if height < node.height {
 			logrus.WithFields(logrus.Fields{
 				"node":     node.name,
 				"old":      node.height,
-				"new":      bn.Uint64(),
-				"reverted": node.height - bn.Uint64(),
+				"new":      height,
+				"reverted": node.height - height,
 			}).Warn("Block reorg detected")
 		}
 
-		node.height = bn.Uint64()
+		node.height = height
 		node.rpcError = ""
 
 		// report on recovered
