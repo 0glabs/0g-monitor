@@ -3,14 +3,6 @@ gioui.org v0.0.0-20210308172011-57750fc8a0a6/go.mod h1:RSH6KIUZ0p2xy5zHDxgAM4zum
 github.com/0glabs/0g-storage-client v0.5.2-0.20240905091814-17934bd6b44c h1:jqYLm/KmJ6McpIB6PqtJGJmk3h5kGpvMRtjb5dWr09A=
 github.com/0glabs/0g-storage-client v0.5.2-0.20240905091814-17934bd6b44c/go.mod h1:OLnlGoRcw1HBvuR6q91SekS4J48G6oSlOffWsmzERYo=
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
-github.com/Conflux-Chain/go-conflux-util v0.2.1 h1:iWYfcQ9ngenLpRi8sYb2x4mko2x2AOf214RuzOj2VLM=
-github.com/Conflux-Chain/go-conflux-util v0.2.1/go.mod h1:6JdsElKVTA3kxbflE2rhYO1hp+rPd9O7THCIN1z/v6c=
-github.com/Conflux-Chain/go-conflux-util v0.2.2-0.20240812080250-15e67c574b52 h1:iZ+oqaIhQ+oynyx/do1mJxJdsu8F/VrXT6NLxCTuNK4=
-github.com/Conflux-Chain/go-conflux-util v0.2.2-0.20240812080250-15e67c574b52/go.mod h1:ThmsVGfj0muqxC3i7Rvyg1GVb+B39mQFuEoHnqF1MBA=
-github.com/Conflux-Chain/go-conflux-util v0.2.2-0.20240906083925-7c9a041527e4 h1:ea6M/mOODtTHOEadcv4oNhA9P+QC4k2qAkrUk/8WBMY=
-github.com/Conflux-Chain/go-conflux-util v0.2.2-0.20240906083925-7c9a041527e4/go.mod h1:ThmsVGfj0muqxC3i7Rvyg1GVb+B39mQFuEoHnqF1MBA=
-github.com/Conflux-Chain/go-conflux-util v0.2.2-0.20240906092506-15bbe94b1ba6 h1:iG+fb0jFUU8CKpTX61wUwkHs66SLpXCwmQmVgwmoc20=
-github.com/Conflux-Chain/go-conflux-util v0.2.2-0.20240906092506-15bbe94b1ba6/go.mod h1:ThmsVGfj0muqxC3i7Rvyg1GVb+B39mQFuEoHnqF1MBA=
 github.com/Conflux-Chain/go-conflux-util v0.2.2-0.20240906102034-37b696c13558 h1:6Mn5piSxnwLDcOV4jMZysKauaNmi4qqJlkDn1F5fz+0=
 github.com/Conflux-Chain/go-conflux-util v0.2.2-0.20240906102034-37b696c13558/go.mod h1:ThmsVGfj0muqxC3i7Rvyg1GVb+B39mQFuEoHnqF1MBA=
 github.com/DataDog/zstd v1.4.5 h1:EndNeuB0l9syBZhut0wns3gV1hL8zX8LIu6ZiVHWLIQ=
