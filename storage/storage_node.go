@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -13,8 +14,8 @@ import (
 )
 
 type StorageNode struct {
-	client           *node.Client
-	backupClient     *node.Client
+	client           *node.ZgsClient
+	backupClient     *node.ZgsClient
 	discordId        string
 	validatorAddress string
 	ip               string
@@ -41,7 +42,7 @@ func NewStorageNode(discordId, validatorAddress, ip string) (*StorageNode, error
 	}
 
 	if strings.HasPrefix(ip, "http") {
-		client, err := node.NewClient(ip)
+		client, err := node.NewZgsClient(ip)
 		if err != nil {
 			return nil, err
 		}
@@ -53,7 +54,7 @@ func NewStorageNode(discordId, validatorAddress, ip string) (*StorageNode, error
 		}, nil
 	}
 
-	client, err := node.NewClient("http://"+ip, providers.Option{
+	client, err := node.NewZgsClient("http://"+ip, providers.Option{
 		RequestTimeout: DefaultTimeout,
 	})
 
@@ -61,7 +62,7 @@ func NewStorageNode(discordId, validatorAddress, ip string) (*StorageNode, error
 		client = nil
 	}
 
-	backupClient, err := node.NewClient("https://"+ip, providers.Option{
+	backupClient, err := node.NewZgsClient("https://"+ip, providers.Option{
 		RequestTimeout: DefaultTimeout,
 	})
 
@@ -83,7 +84,7 @@ func NewStorageNode(discordId, validatorAddress, ip string) (*StorageNode, error
 }
 
 func (storageNode *StorageNode) CheckStatus(config health.TimedCounterConfig) {
-	_, err := storageNode.client.ZeroGStorage().GetStatus()
+	_, err := storageNode.client.GetStatus(context.Background())
 	if logrus.IsLevelEnabled(logrus.DebugLevel) {
 		logrus.WithFields(logrus.Fields{
 			"ip": storageNode.ip,
@@ -122,9 +123,9 @@ func (storageNode *StorageNode) CheckStatusSilence(config health.TimedCounterCon
         status = VALUES(status)
 	`
 
-	_, err := storageNode.client.ZeroGStorage().GetStatus()
+	_, err := storageNode.client.GetStatus(context.Background())
 	if err != nil && storageNode.backupClient != nil {
-		_, err = storageNode.backupClient.ZeroGStorage().GetStatus()
+		_, err = storageNode.backupClient.GetStatus(context.Background())
 	}
 
 	if err != nil {
