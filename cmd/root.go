@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/0glabs/0g-monitor/blockchain"
+	"github.com/0glabs/0g-monitor/cmd/stat"
 	"github.com/0glabs/0g-monitor/da"
 	"github.com/0glabs/0g-monitor/storage"
 	"github.com/Conflux-Chain/go-conflux-util/config"
@@ -22,6 +23,8 @@ func init() {
 	cobra.OnInitialize(initConfig)
 
 	log.BindFlags(rootCmd)
+
+	rootCmd.AddCommand(stat.Cmd)
 }
 
 func initConfig() {
