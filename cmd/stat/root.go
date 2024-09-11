@@ -24,8 +24,8 @@ var (
 )
 
 func init() {
-	Cmd.PersistentFlags().StringVar(&indexerURL, "indexer", "", "Indexer URL to discover storage nodes")
-	Cmd.MarkPersistentFlagRequired("indexer")
+	Cmd.PersistentFlags().StringVar(&indexerURL, "indexer", "https://rpc-storage-testnet-turbo.0g.ai", "Indexer URL to discover storage nodes")
+	// Cmd.MarkPersistentFlagRequired("indexer")
 	Cmd.PersistentFlags().IntVar(&serialOpt.Routines, "threads", 0, "Number of threads to query RPC")
 }
 

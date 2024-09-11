@@ -1,6 +1,7 @@
 package files
 
 import (
+	"database/sql"
 	"time"
 
 	"github.com/Conflux-Chain/go-conflux-util/store/mysql"
@@ -31,4 +32,12 @@ func (s *Store) Upsert(replicas ...*Replica) error {
 	return s.db.Clauses(clause.OnConflict{
 		UpdateAll: true,
 	}).Create(replicas).Error
+}
+
+func (s *Store) MaxTxSeq() (sql.NullInt64, error) {
+	var maxTxSeq sql.NullInt64
+	if err := s.db.Table("replicas").Select("max(tx_seq)").Scan(&maxTxSeq).Error; err != nil {
+		return sql.NullInt64{}, err
+	}
+	return maxTxSeq, nil
 }

@@ -33,6 +33,7 @@ type Config struct {
 	Fullnode               string
 	DiscoveryPeersInterval time.Duration `default:"10m"`
 	Routines               int           `default:"500"`
+	RpcBatch               uint64        `default:"200"`
 	Mysql                  mysql.Config
 }
 
@@ -95,16 +96,45 @@ func Collect(config Config) error {
 }
 
 func collect(config Config, discovery *Discovery, sampler *Sampler, store *Store) {
+	var next uint64
+
+	// continue from break point in db
+	max, err := store.MaxTxSeq()
+	if err != nil {
+		logger.WithError(err).Warn("Failed to load max tx seq from store")
+	} else if max.Valid {
+		next = uint64(max.Int64 + 1)
+	}
+	logger.WithField("next", next).Info("Begin to collect file status")
+
+	txSeqBuf := make([]uint64, config.RpcBatch)
+
 	for {
-		peers, shards := discovery.GetPeers()
+		maxTxSeq := sampler.maxTxSeq.Load()
 
-		txSeq := sampler.Random()
-
-		rpcFunc := func(client *node.ZgsClient, ctx context.Context) (*node.FileInfo, error) {
-			return client.GetFileInfoByTxSeq(ctx, txSeq)
+		// start from 0 again
+		if next > maxTxSeq {
+			next = 0
+			logrus.WithField("max", maxTxSeq).Warn("Statistic file status from seq 0 again")
 		}
 
-		logger.WithField("txSeq", txSeq).Debug("Begin to statistic file status")
+		batchSize := min(config.RpcBatch, maxTxSeq+1-next)
+		for i := uint64(0); i < batchSize; i++ {
+			txSeqBuf[i] = next + i
+		}
+
+		rpcFunc := func(client *node.ZgsClient, ctx context.Context) (*batchGetFileInfoResult, error) {
+			return batchGetFileInfo(client.Provider, ctx, txSeqBuf[:batchSize]...)
+		}
+
+		peers, shards := discovery.GetPeers()
+
+		logger.WithFields(logrus.Fields{
+			"start": next,
+			"end":   next + batchSize - 1,
+			"peers": len(peers),
+		}).Debug("Begin to statistic file status")
+
 		result := parallel.QueryZgsRpc(context.Background(), peers, rpcFunc, parallel.RpcOption{
 			Parallel: parallel.SerialOption{
 				Routines: config.Routines,
@@ -112,30 +142,33 @@ func collect(config Config, discovery *Discovery, sampler *Sampler, store *Store
 			Provider: defaultProviderOption,
 		})
 
-		counter := NewShardCounter()
-		var aaa int
+		replicas := make([]*Replica, batchSize)
 
-		for peer, rpcResult := range result {
-			if rpcResult.Err == nil && rpcResult.Data != nil && rpcResult.Data.Finalized {
-				counter.Insert(shards[peer])
-				aaa++
+		for i := 0; i < int(batchSize); i++ {
+			counter := NewShardCounter()
+
+			for peer, rpcResult := range result {
+				if rpcResult.Err == nil && rpcResult.Data.IsFinalized(i) {
+					counter.Insert(shards[peer])
+				}
+			}
+
+			replicas[i] = &Replica{
+				TxSeq:   txSeqBuf[i],
+				Replica: counter.Replica(),
 			}
 		}
 
-		replica := counter.Replica()
-		logger.WithFields(logrus.Fields{
-			"txSeq":   txSeq,
-			"replica": replica,
-			"count":   aaa,
-		}).Debug("Completed to statistic file status")
-
-		model := Replica{
-			TxSeq:   txSeq,
-			Replica: replica,
-		}
-
-		if err := store.Upsert(&model); err != nil {
+		if err := store.Upsert(replicas...); err != nil {
 			logger.WithError(err).Warn("Failed to upsert replica in db")
 		}
+
+		logger.WithFields(logrus.Fields{
+			"start": next,
+			"end":   next + batchSize - 1,
+			"peers": len(peers),
+		}).Debug("Completed to statistic file status")
+
+		next += batchSize
 	}
 }
