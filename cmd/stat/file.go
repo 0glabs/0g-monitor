@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/0glabs/0g-monitor/storage/files"
 	"github.com/0glabs/0g-storage-client/common/shard"
 	"github.com/0glabs/0g-storage-client/node"
 	"github.com/ethereum/go-ethereum/common"
@@ -36,7 +37,7 @@ func statFileDistribution(*cobra.Command, []string) {
 		Shard shard.ShardConfig
 	}
 
-	files := mustStatRpc(func(client *node.ZgsClient, ctx context.Context) (*ShardedFileInfo, error) {
+	infos := mustStatRpc(func(client *node.ZgsClient, ctx context.Context) (*ShardedFileInfo, error) {
 		var info ShardedFileInfo
 		var err error
 
@@ -55,16 +56,16 @@ func statFileDistribution(*cobra.Command, []string) {
 
 	var rpcFailures int
 	fileDistribution := make(map[string]int)
-	uploadedShardCounter := newShardCounter()
+	uploadedShardCounter := files.NewShardCounter()
 
-	for _, v := range files {
+	for _, v := range infos {
 		if v.Err != nil {
 			rpcFailures++
 		} else if v.Data.File == nil {
 			fileDistribution["Unsynced"]++
 		} else if v.Data.File.Finalized {
 			fileDistribution["Uploaded"]++
-			uploadedShardCounter.insert(v.Data.Shard)
+			uploadedShardCounter.Insert(v.Data.Shard)
 		} else {
 			fileDistribution["Synced"]++
 		}
@@ -77,5 +78,5 @@ func statFileDistribution(*cobra.Command, []string) {
 		fmt.Printf("\t%v: %v\n", status, count)
 	}
 
-	uploadedShardCounter.print("\nUploaded shard distribution")
+	prettyPrint(uploadedShardCounter, "\nUploaded shard distribution")
 }

@@ -5,7 +5,7 @@ go 1.22
 toolchain go1.22.6
 
 require (
-	github.com/0glabs/0g-storage-client v0.5.2-0.20240905091814-17934bd6b44c
+	github.com/0glabs/0g-storage-client v0.5.2-0.20240910030431-fc25cd9ac9e1
 	github.com/Conflux-Chain/go-conflux-util v0.2.2-0.20240906102034-37b696c13558
 	github.com/go-gota/gota v0.12.0
 	github.com/go-sql-driver/mysql v1.6.0
@@ -15,19 +15,24 @@ require (
 	github.com/spf13/cobra v1.8.1
 	google.golang.org/protobuf v1.34.2
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
+	gorm.io/gorm v1.21.15
 )
 
 require (
 	github.com/cpuguy83/go-md2man/v2 v2.0.4 // indirect
 	github.com/fjl/memsize v0.0.2 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.0 // indirect
+	github.com/google/btree v1.1.2 // indirect
 	github.com/hashicorp/go-bexpr v0.1.10 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
+	github.com/jinzhu/inflection v1.0.0 // indirect
+	github.com/jinzhu/now v1.1.2 // indirect
 	github.com/mitchellh/pointerstructure v1.2.0 // indirect
 	github.com/rs/cors v1.7.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/urfave/cli/v2 v2.25.7 // indirect
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
+	gorm.io/driver/mysql v1.1.2 // indirect
 )
 
 require (
