@@ -52,6 +52,10 @@ func MustCollect(config Config) {
 func Collect(config Config) error {
 	logger = logrus.WithField("module", "zgs.stat.files")
 
+	// create store
+	store := MustNewStore(config.Mysql)
+	logger.Info("Database initialized")
+
 	// create indexer client
 	indexerClient, err := indexer.NewClient(config.Indexer, defaultIndexerProviderOption)
 	if err != nil {
@@ -85,10 +89,6 @@ func Collect(config Config) error {
 	}
 	go util.Schedule(sampler.Update, 5*time.Second, "Failed to update max tx seq")
 	logger.WithField("max", sampler.maxTxSeq.Load()).Info("Begin to update max tx seq from flow contract")
-
-	// create store
-	store := MustNewStore(config.Mysql)
-	logger.Info("Database initialized")
 
 	collect(config, discovery, sampler, store)
 
@@ -142,25 +142,35 @@ func collect(config Config, discovery *Discovery, sampler *Sampler, store *Store
 			Provider: defaultProviderOption,
 		})
 
-		replicas := make([]*Replica, batchSize)
+		files := make([]*File, batchSize)
 
 		for i := 0; i < int(batchSize); i++ {
 			counter := NewShardCounter()
+			file := File{
+				TxSeq: txSeqBuf[i],
+			}
 
 			for peer, rpcResult := range result {
-				if rpcResult.Err == nil && rpcResult.Data.IsFinalized(i) {
+				if rpcResult.Err != nil || rpcResult.Data.errors[i] != nil {
+					continue
+				}
+
+				if rpcResult.Data.files[i] == nil {
+					file.NumNotSync++
+				} else if rpcResult.Data.files[i].Finalized {
+					file.NumUploaded++
 					counter.Insert(shards[peer])
+				} else {
+					file.NumSynced++
 				}
 			}
 
-			replicas[i] = &Replica{
-				TxSeq:   txSeqBuf[i],
-				Replica: counter.Replica(),
-			}
+			file.NumReplica = counter.Replica()
+			files[i] = &file
 		}
 
-		if err := store.Upsert(replicas...); err != nil {
-			logger.WithError(err).Warn("Failed to upsert replica in db")
+		if err := store.Upsert(files...); err != nil {
+			logger.WithError(err).Warn("Failed to upsert file status in db")
 		}
 
 		logger.WithFields(logrus.Fields{

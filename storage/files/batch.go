@@ -14,10 +14,6 @@ type batchGetFileInfoResult struct {
 	errors []error
 }
 
-func (result *batchGetFileInfoResult) IsFinalized(i int) bool {
-	return i < len(result.files) && result.files[i] != nil && result.files[i].Finalized
-}
-
 func batchGetFileInfo(provider interfaces.Provider, ctx context.Context, txSeqs ...uint64) (*batchGetFileInfoResult, error) {
 	var batch []rpc.BatchElem
 
