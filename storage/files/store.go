@@ -12,6 +12,7 @@ import (
 type File struct {
 	ID          uint64
 	TxSeq       uint64    `gorm:"not null; unique"`
+	NumErrors   uint64    `gorm:"not null"`
 	NumNotSync  uint64    `gorm:"not null"`
 	NumSynced   uint64    `gorm:"not null"`
 	NumUploaded uint64    `gorm:"not null"`

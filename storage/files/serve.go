@@ -139,6 +139,7 @@ func collect(config Config, discovery *Discovery, sampler *Sampler, store *Store
 			"peers": len(peers),
 		}).Debug("Begin to statistic file status")
 
+		start := time.Now()
 		result := parallel.QueryZgsRpc(context.Background(), peers, rpcFunc, parallel.RpcOption{
 			Parallel: parallel.SerialOption{
 				Routines: config.Routines,
@@ -156,10 +157,8 @@ func collect(config Config, discovery *Discovery, sampler *Sampler, store *Store
 
 			for peer, rpcResult := range result {
 				if rpcResult.Err != nil || rpcResult.Data.errors[i] != nil {
-					continue
-				}
-
-				if rpcResult.Data.files[i] == nil {
+					file.NumErrors++
+				} else if rpcResult.Data.files[i] == nil {
 					file.NumNotSync++
 				} else if rpcResult.Data.files[i].Finalized {
 					file.NumUploaded++
@@ -178,9 +177,10 @@ func collect(config Config, discovery *Discovery, sampler *Sampler, store *Store
 		}
 
 		logger.WithFields(logrus.Fields{
-			"start": next,
-			"end":   next + batchSize - 1,
-			"peers": len(peers),
+			"start":   next,
+			"end":     next + batchSize - 1,
+			"peers":   len(peers),
+			"elapsed": time.Since(start),
 		}).Debug("Completed to statistic file status")
 
 		next += batchSize
