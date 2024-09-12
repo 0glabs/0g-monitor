@@ -9,6 +9,7 @@ import (
 	"github.com/0glabs/0g-storage-client/contract"
 	"github.com/0glabs/0g-storage-client/indexer"
 	"github.com/0glabs/0g-storage-client/node"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/openweb3/web3go"
 	"github.com/pkg/errors"
 )
@@ -41,8 +42,12 @@ func NewSampler(indexerClient *indexer.Client, w3Client *web3go.Client) (*Sample
 	}
 	logger.WithField("flow", status.NetworkIdentity.FlowContractAddress).Info("Succeeded to get status from trusted node")
 
+	return NewSamplerWithFlow(status.NetworkIdentity.FlowContractAddress, w3Client)
+}
+
+func NewSamplerWithFlow(flowContractAddress common.Address, w3Client *web3go.Client) (*Sampler, error) {
 	caller, _ := w3Client.ToClientForContract()
-	flow, err := contract.NewFlowCaller(status.NetworkIdentity.FlowContractAddress, caller)
+	flow, err := contract.NewFlowCaller(flowContractAddress, caller)
 	if err != nil {
 		return nil, errors.WithMessage(err, "Failed to create flow contract caller")
 	}
