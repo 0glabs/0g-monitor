@@ -5,7 +5,7 @@ go 1.22
 toolchain go1.22.6
 
 require (
-	github.com/0glabs/0g-storage-client v0.5.2-0.20240911092315-740553bd3ef4
+	github.com/0glabs/0g-storage-client v0.6.1-0.20240918080436-af5b003aa10e
 	github.com/Conflux-Chain/go-conflux-util v0.2.2-0.20240906102034-37b696c13558
 	github.com/go-gota/gota v0.12.0
 	github.com/go-sql-driver/mysql v1.6.0
