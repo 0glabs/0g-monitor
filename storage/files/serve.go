@@ -10,7 +10,6 @@ import (
 	"github.com/0glabs/0g-storage-client/node"
 	"github.com/Conflux-Chain/go-conflux-util/store/mysql"
 	"github.com/Conflux-Chain/go-conflux-util/viper"
-	"github.com/ethereum/go-ethereum/common"
 	providers "github.com/openweb3/go-rpc-provider/provider_wrapper"
 	"github.com/openweb3/web3go"
 	"github.com/pkg/errors"
@@ -37,9 +36,6 @@ type Config struct {
 	Routines               int           `default:"500"`
 	RpcBatch               uint64        `default:"200"`
 	Mysql                  mysql.Config
-
-	// be be removed once storage node return flow contract address
-	Flow string
 }
 
 func MustCollectFromViper() {
@@ -88,7 +84,7 @@ func Collect(config Config) error {
 
 	// sample txSeq to statistic
 	logger.Debug("Begin to initialize sampler")
-	sampler, err := NewSamplerWithFlow(common.HexToAddress(config.Flow), w3Client)
+	sampler, err := NewSampler(indexerClient, w3Client)
 	if err != nil {
 		return errors.WithMessage(err, "Failed to create sampler")
 	}
