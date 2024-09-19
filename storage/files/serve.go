@@ -131,8 +131,8 @@ func collect(config Config, discovery *Discovery, sampler *Sampler, store *Store
 			txSeqBuf[i] = next + i
 		}
 
-		rpcFunc := func(client *node.ZgsClient, ctx context.Context) (*batchGetFileInfoResult, error) {
-			return batchGetFileInfo(client.Provider, ctx, txSeqBuf[:batchSize]...)
+		rpcFunc := func(client *node.ZgsClient, ctx context.Context) ([]BatchRpcResponse[*bool], error) {
+			return BatchCheckFileFinalized(client.Provider, ctx, txSeqBuf[:batchSize]...)
 		}
 
 		logger.WithFields(logrus.Fields{
@@ -158,11 +158,11 @@ func collect(config Config, discovery *Discovery, sampler *Sampler, store *Store
 			}
 
 			for peer, rpcResult := range result {
-				if rpcResult.Err != nil || rpcResult.Data.errors[i] != nil {
+				if rpcResult.Err != nil || rpcResult.Data[i].Error != nil {
 					file.NumErrors++
-				} else if rpcResult.Data.files[i] == nil {
+				} else if rpcResult.Data[i].Result == nil {
 					file.NumNotSync++
-				} else if rpcResult.Data.files[i].Finalized {
+				} else if *rpcResult.Data[i].Result {
 					file.NumUploaded++
 					counter.Insert(shards[peer])
 				} else {

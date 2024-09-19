@@ -3,49 +3,53 @@ package files
 import (
 	"context"
 
-	"github.com/0glabs/0g-storage-client/node"
 	"github.com/openweb3/go-rpc-provider"
 	"github.com/openweb3/go-rpc-provider/interfaces"
-	"github.com/pkg/errors"
 )
 
-type batchGetFileInfoResult struct {
-	files  []*node.FileInfo
-	errors []error
+type BatchRpcRequest struct {
+	Method string
+	Args   []any
 }
 
-func batchGetFileInfo(provider interfaces.Provider, ctx context.Context, txSeqs ...uint64) (*batchGetFileInfoResult, error) {
-	var batch []rpc.BatchElem
+type BatchRpcResponse[T any] struct {
+	Result T
+	Error  error
+}
 
-	for _, v := range txSeqs {
+func BatchCallRpc[T any](provider interfaces.Provider, ctx context.Context, requests ...BatchRpcRequest) ([]BatchRpcResponse[T], error) {
+	batch := make([]rpc.BatchElem, 0, len(requests))
+	responses := make([]BatchRpcResponse[T], len(requests))
+
+	for i, v := range requests {
 		batch = append(batch, rpc.BatchElem{
-			Method: "zgs_getFileInfoByTxSeq",
-			Args:   []interface{}{v},
-			Result: &node.FileInfo{},
+			Method: v.Method,
+			Args:   v.Args,
+			Result: &responses[i].Result,
 		})
 	}
 
 	if err := provider.BatchCallContext(ctx, batch); err != nil {
-		return nil, errors.WithMessage(err, "Failed to batch call RPC")
+		return nil, err
 	}
 
-	result := batchGetFileInfoResult{
-		files:  make([]*node.FileInfo, 0, len(batch)),
-		errors: make([]error, 0, len(batch)),
-	}
-
-	for _, v := range batch {
+	for i, v := range batch {
 		if v.Error != nil {
-			result.files = append(result.files, nil)
-			result.errors = append(result.errors, v.Error)
-		} else if ret := v.Result.(*node.FileInfo); ret.Tx.Size > 0 {
-			result.files = append(result.files, ret)
-			result.errors = append(result.errors, nil)
-		} else {
-			result.files = append(result.files, nil)
-			result.errors = append(result.errors, nil)
+			responses[i].Error = v.Error
 		}
 	}
 
-	return &result, nil
+	return responses, nil
+}
+
+func BatchCheckFileFinalized(provider interfaces.Provider, ctx context.Context, txSeqs ...uint64) ([]BatchRpcResponse[*bool], error) {
+	requests := make([]BatchRpcRequest, 0, len(txSeqs))
+	for _, v := range txSeqs {
+		requests = append(requests, BatchRpcRequest{
+			Method: "zgs_checkFileFinalized",
+			Args:   []any{v},
+		})
+	}
+
+	return BatchCallRpc[*bool](provider, ctx, requests...)
 }
