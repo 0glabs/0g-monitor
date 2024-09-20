@@ -10,6 +10,7 @@ import (
 	"github.com/0glabs/0g-storage-client/node"
 	"github.com/Conflux-Chain/go-conflux-util/store/mysql"
 	"github.com/Conflux-Chain/go-conflux-util/viper"
+	"github.com/openweb3/go-rpc-provider/interfaces"
 	providers "github.com/openweb3/go-rpc-provider/provider_wrapper"
 	"github.com/openweb3/web3go"
 	"github.com/pkg/errors"
@@ -131,8 +132,8 @@ func collect(config Config, discovery *Discovery, sampler *Sampler, store *Store
 			txSeqBuf[i] = next + i
 		}
 
-		rpcFunc := func(client *node.ZgsClient, ctx context.Context) ([]BatchRpcResponse[*bool], error) {
-			return BatchCheckFileFinalized(client.Provider, ctx, txSeqBuf[:batchSize]...)
+		rpcFunc := func(client *node.ZgsClient, ctx context.Context) ([]providers.Response[*bool], error) {
+			return batchCheckFileFinalized(client.Provider, ctx, txSeqBuf[:batchSize]...)
 		}
 
 		logger.WithFields(logrus.Fields{
@@ -160,9 +161,9 @@ func collect(config Config, discovery *Discovery, sampler *Sampler, store *Store
 			for peer, rpcResult := range result {
 				if rpcResult.Err != nil || rpcResult.Data[i].Error != nil {
 					file.NumErrors++
-				} else if rpcResult.Data[i].Result == nil {
+				} else if rpcResult.Data[i].Data == nil {
 					file.NumNotSync++
-				} else if *rpcResult.Data[i].Result {
+				} else if *rpcResult.Data[i].Data {
 					file.NumUploaded++
 					counter.Insert(shards[peer])
 				} else {
@@ -187,4 +188,16 @@ func collect(config Config, discovery *Discovery, sampler *Sampler, store *Store
 
 		next += batchSize
 	}
+}
+
+func batchCheckFileFinalized(provider interfaces.Provider, ctx context.Context, txSeqs ...uint64) ([]providers.Response[*bool], error) {
+	requests := make([]providers.Request, 0, len(txSeqs))
+	for _, v := range txSeqs {
+		requests = append(requests, providers.Request{
+			Method: "zgs_checkFileFinalized",
+			Args:   []any{v},
+		})
+	}
+
+	return providers.BatchCallContext[*bool](provider, ctx, requests...)
 }
