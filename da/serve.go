@@ -25,7 +25,7 @@ type DBConfig struct {
 }
 
 type Config struct {
-	Interval       time.Duration `default:"10s"`
+	Interval       time.Duration `default:"600s"`
 	DaNodeReport   health.TimedCounterConfig
 	DaClientReport health.TimedCounterConfig
 	DbConfig       DBConfig

@@ -62,7 +62,7 @@ func Monitor(config Config) {
 	url, _ := url.Parse(config.CosmosRPC)
 	for name, address := range config.Validators {
 		logrus.WithField("name", name).WithField("address", address).Debug("Start to monitor validator")
-		validators = append(validators, MustNewValidator(url, name, address, false))
+		validators = append(validators, MustNewValidator(url, name, address))
 	}
 
 	// Read the file into a dataframe
@@ -79,7 +79,7 @@ func Monitor(config Config) {
 			ip = strings.TrimSpace(ip)
 			logrus.WithField("discord_id", discordId).WithField("ip", ip).Debug("Start to monitor user validator node")
 
-			currNode := MustNewValidator(url, validatorAddress, ip, true)
+			currNode := MustNewValidator(url, validatorAddress, ip)
 			if currNode != nil {
 				userNodes = append(userNodes, currNode)
 			}

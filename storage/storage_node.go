@@ -15,7 +15,6 @@ import (
 
 type StorageNode struct {
 	client           *node.ZgsClient
-	backupClient     *node.ZgsClient
 	discordId        string
 	validatorAddress string
 	ip               string
@@ -41,42 +40,14 @@ func NewStorageNode(discordId, validatorAddress, ip string) (*StorageNode, error
 		return nil, fmt.Errorf("empty ip")
 	}
 
-	if strings.HasPrefix(ip, "http") {
-		client, err := node.NewZgsClient(ip)
-		if err != nil {
-			return nil, err
-		}
-		return &StorageNode{
-			client:           client,
-			discordId:        discordId,
-			validatorAddress: validatorAddress,
-			ip:               ip,
-		}, nil
-	}
-
-	client, err := node.NewZgsClient("http://"+ip, providers.Option{
+	client, err := node.NewZgsClient(ip, providers.Option{
 		RequestTimeout: DefaultTimeout,
 	})
-
 	if err != nil {
-		client = nil
+		return nil, err
 	}
-
-	backupClient, err := node.NewZgsClient("https://"+ip, providers.Option{
-		RequestTimeout: DefaultTimeout,
-	})
-
-	if err != nil {
-		backupClient = nil
-	}
-
-	if client == nil && backupClient == nil {
-		return nil, fmt.Errorf("failed to create client")
-	}
-
 	return &StorageNode{
 		client:           client,
-		backupClient:     backupClient,
 		discordId:        discordId,
 		validatorAddress: validatorAddress,
 		ip:               ip,
@@ -124,9 +95,6 @@ func (storageNode *StorageNode) CheckStatusSilence(config health.TimedCounterCon
 	`
 
 	_, err := storageNode.client.GetStatus(context.Background())
-	if err != nil && storageNode.backupClient != nil {
-		_, err = storageNode.backupClient.GetStatus(context.Background())
-	}
 
 	if err != nil {
 		logrus.WithFields(logrus.Fields{

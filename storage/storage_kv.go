@@ -15,7 +15,6 @@ import (
 
 type KvNode struct {
 	client           *node.KvClient
-	backupClient     *node.KvClient
 	discordId        string
 	validatorAddress string
 	ip               string
@@ -41,39 +40,19 @@ func NewKvNode(discordId, validatorAddress, ip string) (*KvNode, error) {
 		return nil, fmt.Errorf("empty ip")
 	}
 
-	if strings.HasPrefix(ip, "http") {
-		client, err := node.NewKvClient(ip)
-		if err != nil {
-			return nil, err
-		}
-		return &KvNode{
-			client:           client,
-			discordId:        discordId,
-			validatorAddress: validatorAddress,
-			ip:               ip,
-		}, nil
-	}
-
-	client, err := node.NewKvClient("http://"+ip, providers.Option{
+	client, err := node.NewKvClient(ip, providers.Option{
 		RequestTimeout: DefaultTimeout,
 	})
 	if err != nil {
 		return nil, err
 	}
-	backupClient, err := node.NewKvClient("https://"+ip, providers.Option{
-		RequestTimeout: DefaultTimeout,
-	})
-	if err != nil {
-		backupClient = nil
-	}
-
 	return &KvNode{
 		client:           client,
-		backupClient:     backupClient,
 		discordId:        discordId,
 		validatorAddress: validatorAddress,
 		ip:               ip,
 	}, nil
+
 }
 
 func (kvNode *KvNode) CheckStatus(config health.TimedCounterConfig) {
@@ -117,9 +96,6 @@ func (kvNode *KvNode) CheckStatusSilence(config health.TimedCounterConfig, db *s
 	`
 
 	_, err := kvNode.client.GetHoldingStreamIds(context.Background())
-	if err != nil && kvNode.backupClient != nil {
-		_, err = kvNode.client.GetHoldingStreamIds(context.Background())
-	}
 
 	if err != nil {
 		logrus.WithFields(logrus.Fields{

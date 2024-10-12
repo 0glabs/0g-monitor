@@ -20,8 +20,8 @@ type Validator struct {
 	health  health.TimedCounter
 }
 
-func MustNewValidator(url *url.URL, name, address string, isCommunity bool) *Validator {
-	validator, err := NewValidator(url, name, address, isCommunity)
+func MustNewValidator(url *url.URL, name, address string) *Validator {
+	validator, err := NewValidator(url, name, address)
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
 			"name":    name,
@@ -33,18 +33,10 @@ func MustNewValidator(url *url.URL, name, address string, isCommunity bool) *Val
 	return validator
 }
 
-func NewValidator(url *url.URL, name, address string, isCommunity bool) (*Validator, error) {
+func NewValidator(url *url.URL, name, address string) (*Validator, error) {
 	address = strings.TrimSpace(address)
 	if len(address) == 0 {
 		return nil, errors.New("empty address")
-	}
-	if isCommunity {
-		url.Path = "/cosmos/staking/v1beta1/validators/" + address
-		return &Validator{
-			url:     url.String(),
-			name:    name,
-			address: address,
-		}, nil
 	}
 
 	url.Path = "/cosmos/staking/v1beta1/validators/" + address
