@@ -1,7 +1,10 @@
 package blockchain
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strconv"
 	"time"
@@ -43,7 +46,40 @@ func MustNewNode(name, urlstr string) *Node {
 	}
 }
 
+func getBlockNumber(url string) (uint64, error) {
+	reqBody := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"method":  "eth_blockNumber",
+		"params":  []interface{}{},
+		"id":      1,
+	}
+
+	// Encode the request body to JSON
+	reqBytes, err := json.Marshal(reqBody)
+	if err != nil {
+		return 0, err
+	}
+
+	// Send the HTTP POST request
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(reqBytes))
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+
+	// Decode the JSON response
+	var respBody map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&respBody); err != nil {
+		return 0, err
+	}
+
+	// Get the block height from the response
+	blockNumber := respBody["result"].(string)
+	return strconv.ParseUint(blockNumber, 0, 64)
+}
+
 func fetchHeight(url string) (uint64, error) {
+
 	var result map[string]interface{}
 	client := resty.New()
 	resp, err := client.R().SetResult(&result).Get(url)
@@ -59,7 +95,7 @@ func fetchHeight(url string) (uint64, error) {
 
 func (node *Node) UpdateHeight(config health.TimedCounterConfig) {
 	start := time.Now()
-	height, err := fetchHeight(node.url)
+	height, err := getBlockNumber(node.url)
 	elapsed := time.Since(start).Nanoseconds()
 	metrics.GetOrRegisterHistogram("monitor/blockchain/rpc/height/latency/%v", node.name).Update(elapsed)
 	if err != nil {
