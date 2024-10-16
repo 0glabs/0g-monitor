@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Conflux-Chain/go-conflux-util/health"
+	"github.com/Conflux-Chain/go-conflux-util/metrics"
 	"github.com/go-resty/resty/v2"
 	"github.com/sirupsen/logrus"
 )
@@ -53,7 +54,10 @@ func fetchHeight(url string) (uint64, error) {
 }
 
 func (node *Node) UpdateHeight(config health.TimedCounterConfig) {
+	start := time.Now()
 	height, err := fetchHeight(node.url)
+	elapsed := time.Since(start).Nanoseconds()
+	metrics.GetOrRegisterHistogram("monitor/blockchain/rpc/height/latency/%v", node.name).Update(elapsed)
 	if err != nil {
 		logrus.WithError(err).WithField("node", node.name).Debug("Failed to query block number")
 
@@ -67,6 +71,8 @@ func (node *Node) UpdateHeight(config health.TimedCounterConfig) {
 				"elapsed": prettyElapsed(elapsed),
 				"error":   node.rpcError,
 			}).Error("Node RPC became unhealthy")
+
+			metrics.GetOrRegisterGauge("monitor/blockchain/rpc/height/unhealth/%v", node.name).Update(1)
 		}
 
 		// remind unhealthy
@@ -78,6 +84,8 @@ func (node *Node) UpdateHeight(config health.TimedCounterConfig) {
 			}).Error("Node RPC not recovered yet")
 		}
 	} else {
+		metrics.GetOrRegisterHistogram("monitor/blockchain/rpc/height/latency/success/%v", node.name).Update(elapsed)
+
 		// check reorg
 		if height < node.height {
 			logrus.WithFields(logrus.Fields{
@@ -97,6 +105,8 @@ func (node *Node) UpdateHeight(config health.TimedCounterConfig) {
 				"node":    node.name,
 				"elapsed": prettyElapsed(elapsed),
 			}).Warn("Node RPC is healthy now")
+
+			metrics.GetOrRegisterGauge("monitor/blockchain/rpc/height/unhealth/%v", node.name).Update(0)
 		}
 	}
 }
@@ -132,6 +142,8 @@ func (node *Node) CheckHeight(config *HeightReportConfig, target uint64) {
 				"elapsed": prettyElapsed(elapsed),
 				"behind":  behind,
 			}).Warn("Node block height is healthy now")
+
+			metrics.GetOrRegisterGauge("monitor/blockchain/height/behind/%v", node.name).Update(0)
 		}
 	} else {
 		unhealthy, unrecovered, elapsed := node.heightHealth.OnFailure(config.TimedCounterConfig)
@@ -142,6 +154,8 @@ func (node *Node) CheckHeight(config *HeightReportConfig, target uint64) {
 				"elapsed": prettyElapsed(elapsed),
 				"behind":  behind,
 			}).Error("Node block height became unhealthy")
+
+			metrics.GetOrRegisterGauge("monitor/blockchain/height/behind/%v", node.name).Update(1)
 		}
 
 		if unrecovered {

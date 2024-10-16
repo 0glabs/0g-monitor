@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/Conflux-Chain/go-conflux-util/health"
+	"github.com/Conflux-Chain/go-conflux-util/metrics"
 	"github.com/go-resty/resty/v2"
 	"github.com/openweb3/web3go"
 	"github.com/pkg/errors"
@@ -81,6 +82,8 @@ func (validator *Validator) Update(config health.TimedCounterConfig) {
 				"elapsed":   prettyElapsed(elapsed),
 				"validator": validator.String(),
 			}).Error("Validator jailed")
+
+			metrics.GetOrRegisterGauge("monitor/blockchain/validator/jailed/%v", validator.name).Update(1)
 		}
 
 		if unrecovered {
@@ -94,6 +97,8 @@ func (validator *Validator) Update(config health.TimedCounterConfig) {
 			"elapsed":   prettyElapsed(elapsed),
 			"validator": validator.String(),
 		}).Warn("Validator unfailed now")
+
+		metrics.GetOrRegisterGauge("monitor/blockchain/validator/jailed/%v", validator.name).Update(0)
 	}
 }
 

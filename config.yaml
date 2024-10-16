@@ -67,6 +67,18 @@
 #       password: ${your_smtp_password}
 
 
+# Metrics configurations
+# metrics:
+#   enabled: false
+#   namespace:
+#   reportInterval: 10s
+#   influxdb:
+#     host: http://127.0.0.1:8086
+#     db: metrics_db
+#     username:
+#     password:
+
+
 # Blockchain Monitoring Configurations
 # blockchain:
 #   nodes:

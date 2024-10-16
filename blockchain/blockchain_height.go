@@ -2,6 +2,7 @@ package blockchain
 
 import (
 	"github.com/Conflux-Chain/go-conflux-util/health"
+	"github.com/Conflux-Chain/go-conflux-util/metrics"
 	"github.com/sirupsen/logrus"
 )
 
@@ -20,6 +21,8 @@ func (bhh *BlockchainHeightHealth) Update(config health.TimedCounterConfig, heig
 				"old":     bhh.height,
 				"new":     height,
 			}).Warn("Blockchain height is growing again")
+
+			metrics.GetOrRegisterGauge("monitor/blockchain/height/halt").Update(0)
 		}
 
 		bhh.height = height
@@ -36,6 +39,8 @@ func (bhh *BlockchainHeightHealth) Update(config health.TimedCounterConfig, heig
 				"elapsed": prettyElapsed(elapsed),
 				"height":  newHeight,
 			}).Error("Blockchain height stops growing")
+
+			metrics.GetOrRegisterGauge("monitor/blockchain/height/halt").Update(1)
 		}
 
 		if unrecovered {
