@@ -41,6 +41,9 @@ func NewValidator(url *url.URL, name, address string) (*Validator, error) {
 	}
 
 	url.Path = "/cosmos/staking/v1beta1/validators/" + address
+
+	metrics.GetOrRegisterGauge("monitor/blockchain/validator/jailed/%v", name).Update(0)
+
 	return &Validator{
 		url:     url.String(),
 		name:    name,

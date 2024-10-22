@@ -14,6 +14,10 @@ type BlockchainHeightHealth struct {
 }
 
 func (bhh *BlockchainHeightHealth) Update(config health.TimedCounterConfig, height uint64) {
+	if bhh.height == 0 {
+		metrics.GetOrRegisterGauge("monitor/blockchain/height/halt").Update(0)
+	}
+
 	if height > bhh.height {
 		if recovered, elapsed := bhh.health.OnSuccess(config); recovered {
 			logrus.WithFields(logrus.Fields{
