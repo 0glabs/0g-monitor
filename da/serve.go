@@ -25,6 +25,7 @@ type DBConfig struct {
 }
 
 type Config struct {
+	Nodes          map[string]string
 	Interval       time.Duration `default:"600s"`
 	DaNodeReport   health.TimedCounterConfig
 	DaClientReport health.TimedCounterConfig
@@ -68,6 +69,19 @@ func Monitor(config Config) {
 	}
 	defer db.Close()
 
+	// Connect to all official da nodes
+	var nodes []*DaNode
+	for name, url := range config.Nodes {
+		logrus.WithField("name", name).WithField("url", url).Debug("Start to monitor fullnode")
+		currNode := MustNewDaNode(name, name, url)
+		if currNode != nil {
+			nodes = append(nodes, currNode)
+		} else {
+			logrus.WithField("name", name).WithField("url", url).Error("Failed to create da node")
+			return
+		}
+	}
+
 	// Read the file into a dataframe
 	df := dataframe.ReadCSV(f)
 
@@ -107,7 +121,7 @@ func Monitor(config Config) {
 	defer ticker.Stop()
 
 	for range ticker.C {
-		monitorOnce(&config, db, userDaNodes, userDaClients)
+		monitorOnce(&config, db, nodes, userDaNodes, userDaClients)
 	}
 }
 
@@ -130,7 +144,10 @@ func CreateDBClients(config DBConfig) (*sql.DB, error) {
 	return db, nil
 }
 
-func monitorOnce(config *Config, db *sql.DB, userNodes []*DaNode, userClients []*DaClient) {
+func monitorOnce(config *Config, db *sql.DB, nodes, userNodes []*DaNode, userClients []*DaClient) {
+	for _, v := range nodes {
+		v.CheckStatusSilence(config.DaNodeReport, db)
+	}
 	for _, v := range userNodes {
 		v.CheckStatusSilence(config.DaNodeReport, db)
 	}

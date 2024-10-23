@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/0glabs/0g-monitor/utils"
 	"github.com/0glabs/0g-storage-client/node"
 	"github.com/Conflux-Chain/go-conflux-util/health"
 	providers "github.com/openweb3/go-rpc-provider/provider_wrapper"
@@ -68,20 +69,20 @@ func (kvNode *KvNode) CheckStatus(config health.TimedCounterConfig) {
 
 		if unhealthy {
 			logrus.WithFields(logrus.Fields{
-				"elapsed": PrettyElapsed(elapsed),
+				"elapsed": utils.PrettyElapsed(elapsed),
 				"ip":      kvNode.ip,
 			}).Error("Kv node disconnected")
 		}
 
 		if unrecovered {
 			logrus.WithFields(logrus.Fields{
-				"elapsed": PrettyElapsed(elapsed),
+				"elapsed": utils.PrettyElapsed(elapsed),
 				"ip":      kvNode.ip,
 			}).Error("Kv node disconnected and not recovered yet")
 		}
 	} else if recovered, elapsed := kvNode.health.OnSuccess(config); recovered {
 		logrus.WithFields(logrus.Fields{
-			"elapsed": PrettyElapsed(elapsed),
+			"elapsed": utils.PrettyElapsed(elapsed),
 			"ip":      kvNode.ip,
 		}).Warn("Kv node recovered now")
 	}

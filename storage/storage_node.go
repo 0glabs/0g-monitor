@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/0glabs/0g-monitor/utils"
 	"github.com/0glabs/0g-storage-client/node"
 	"github.com/Conflux-Chain/go-conflux-util/health"
 	providers "github.com/openweb3/go-rpc-provider/provider_wrapper"
@@ -67,20 +68,20 @@ func (storageNode *StorageNode) CheckStatus(config health.TimedCounterConfig) {
 
 		if unhealthy {
 			logrus.WithFields(logrus.Fields{
-				"elapsed": PrettyElapsed(elapsed),
+				"elapsed": utils.PrettyElapsed(elapsed),
 				"ip":      storageNode.ip,
 			}).Error("Storage node disconnected")
 		}
 
 		if unrecovered {
 			logrus.WithFields(logrus.Fields{
-				"elapsed": PrettyElapsed(elapsed),
+				"elapsed": utils.PrettyElapsed(elapsed),
 				"ip":      storageNode.ip,
 			}).Error("Storage node disconnected and not recovered yet")
 		}
 	} else if recovered, elapsed := storageNode.health.OnSuccess(config); recovered {
 		logrus.WithFields(logrus.Fields{
-			"elapsed": PrettyElapsed(elapsed),
+			"elapsed": utils.PrettyElapsed(elapsed),
 			"ip":      storageNode.ip,
 		}).Warn("Storage node recovered now")
 	}

@@ -173,7 +173,3 @@ func monitorKvNodeOnce(config *Config, db *sql.DB, kvNodes, userNodes []*KvNode)
 		v.CheckStatusSilence(config.StorageNodeReport, db)
 	}
 }
-
-func PrettyElapsed(elapsed time.Duration) string {
-	return fmt.Sprint(elapsed.Truncate(time.Second))
-}

@@ -136,6 +136,9 @@
 #       password: 123456
 #       database: test
 # da:
+#   nodes:
+#     node0: ip0:34000
+#     node1: ip1:34000
 #   daNodeReport:
 #     threshold: 120m
 #     remind: 120m

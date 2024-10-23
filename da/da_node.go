@@ -7,6 +7,7 @@ import (
 	"time"
 
 	pb "github.com/0glabs/0g-monitor/proto/da-node"
+	"github.com/0glabs/0g-monitor/utils"
 	"github.com/Conflux-Chain/go-conflux-util/health"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -28,6 +29,46 @@ func MustNewDaNode(discordId, validatorAddress, ip string) *DaNode {
 		ip:               ip,
 	}
 
+}
+
+func (daNode *DaNode) CheckStatus(config health.TimedCounterConfig, db *sql.DB) {
+	conn, err := grpc.NewClient(daNode.ip, []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}...)
+	if err == nil {
+		defer conn.Close()
+		c := pb.NewSignerClient(conn)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		defer cancel()
+		_, err = c.GetStatus(ctx, &pb.Empty{})
+	}
+
+	if logrus.IsLevelEnabled(logrus.DebugLevel) {
+		logrus.WithFields(logrus.Fields{
+			"ip": daNode.ip,
+		}).Debug("Da node status report")
+	}
+
+	if err != nil {
+		unhealthy, unrecovered, elapsed := daNode.health.OnFailure(config)
+
+		if unhealthy {
+			logrus.WithFields(logrus.Fields{
+				"elapsed": utils.PrettyElapsed(elapsed),
+				"ip":      daNode.ip,
+			}).Error("Storage node disconnected")
+		}
+
+		if unrecovered {
+			logrus.WithFields(logrus.Fields{
+				"elapsed": utils.PrettyElapsed(elapsed),
+				"ip":      daNode.ip,
+			}).Error("Da node disconnected and not recovered yet")
+		}
+	} else if recovered, elapsed := daNode.health.OnSuccess(config); recovered {
+		logrus.WithFields(logrus.Fields{
+			"elapsed": utils.PrettyElapsed(elapsed),
+			"ip":      daNode.ip,
+		}).Warn("Da node recovered now")
+	}
 }
 
 func (daNode *DaNode) CheckStatusSilence(config health.TimedCounterConfig, db *sql.DB) {
