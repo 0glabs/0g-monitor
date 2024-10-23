@@ -72,7 +72,7 @@ func Monitor(config Config) {
 	// Connect to all official da nodes
 	var nodes []*DaNode
 	for name, url := range config.Nodes {
-		logrus.WithField("name", name).WithField("url", url).Debug("Start to monitor fullnode")
+		logrus.WithField("name", name).WithField("url", url).Debug("Start to monitor da node")
 		currNode := MustNewDaNode(name, name, url)
 		if currNode != nil {
 			nodes = append(nodes, currNode)
