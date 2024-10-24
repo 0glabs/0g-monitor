@@ -35,7 +35,7 @@ type Node struct {
 
 func MustNewNode(name, urlstr string) *Node {
 	url, _ := url.Parse(urlstr)
-	url.Path = "status"
+	// url.Path = "status"
 
 	metrics.GetOrRegisterGauge("monitor/blockchain/rpc/height/unhealth/%v", name).Update(0)
 	metrics.GetOrRegisterGauge("monitor/blockchain/height/behind/%v", name).Update(0)
