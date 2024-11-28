@@ -74,9 +74,9 @@ func (daNode *DaNode) CheckStatus(config health.TimedCounterConfig, db *sql.DB) 
 func (daNode *DaNode) CheckStatusSilence(config health.TimedCounterConfig, db *sql.DB) {
 	upsertQuery := `
         INSERT INTO user_da_node_status (ip, discord_id, address, status)
-        VALUES (?, ?, ?, ?)
+        VALUES (?, ?, ?, ?) AS v
         ON DUPLICATE KEY UPDATE
-        status = VALUES(status)
+        status = v.status
 	`
 
 	conn, err := grpc.NewClient(daNode.ip, []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}...)

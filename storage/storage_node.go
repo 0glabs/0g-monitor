@@ -90,9 +90,9 @@ func (storageNode *StorageNode) CheckStatus(config health.TimedCounterConfig) {
 func (storageNode *StorageNode) CheckStatusSilence(config health.TimedCounterConfig, db *sql.DB) {
 	upsertQuery := `
         INSERT INTO user_storage_status (ip, discord_id, address, status)
-        VALUES (?, ?, ?, ?)
+        VALUES (?, ?, ?, ?) AS v
         ON DUPLICATE KEY UPDATE
-        status = VALUES(status)
+        status = v.status
 	`
 
 	_, err := storageNode.client.GetStatus(context.Background())

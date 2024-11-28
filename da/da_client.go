@@ -33,9 +33,9 @@ func MustNewDaClient(discordId, validatorAddress, ip string) *DaClient {
 func (daClient *DaClient) CheckStatusSilence(config health.TimedCounterConfig, db *sql.DB) {
 	upsertQuery := `
         INSERT INTO user_da_client_status (ip, discord_id, address, status)
-        VALUES (?, ?, ?, ?)
+        VALUES (?, ?, ?, ?) AS v
         ON DUPLICATE KEY UPDATE
-        status = VALUES(status)
+        status = v.status
 	`
 
 	conn, err := grpc.NewClient(daClient.ip, []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}...)

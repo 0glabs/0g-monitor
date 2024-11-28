@@ -91,9 +91,9 @@ func (kvNode *KvNode) CheckStatus(config health.TimedCounterConfig) {
 func (kvNode *KvNode) CheckStatusSilence(config health.TimedCounterConfig, db *sql.DB) {
 	upsertQuery := `
         INSERT INTO user_kv_status (ip, discord_id, address, status)
-        VALUES (?, ?, ?, ?)
+        VALUES (?, ?, ?, ?) AS v
         ON DUPLICATE KEY UPDATE
-        status = VALUES(status)
+        status = v.status
 	`
 
 	_, err := kvNode.client.GetHoldingStreamIds(context.Background())
