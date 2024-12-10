@@ -7,10 +7,12 @@ import (
 	"os"
 	"strings"
 
+
 	"time"
 
 	"github.com/Conflux-Chain/go-conflux-util/health"
 	"github.com/Conflux-Chain/go-conflux-util/viper"
+
 
 	"github.com/go-gota/gota/dataframe"
 	_ "github.com/go-sql-driver/mysql"
@@ -29,6 +31,7 @@ type DBConfig struct {
 type Config struct {
 	Interval          time.Duration `default:"600s"`
 	BlockGap          uint64        `default:"10"`
+	AdminNodeIp       string
 	Nodes             map[string]string
 	KvNodes           map[string]string
 	StorageNodeReport health.TimedCounterConfig
@@ -66,6 +69,8 @@ func Monitor(config Config) {
 	logrus.WithFields(logrus.Fields{
 		"storage_kv": len(config.KvNodes),
 	}).Info("Start to monitor kv services")
+
+	adminNode := MustNewAdminNode(config.AdminNodeIp)
 
 	var storageNodes []*StorageNode
 	for name, ip := range config.Nodes {
@@ -133,6 +138,7 @@ func Monitor(config Config) {
 	defer ticker.Stop()
 
 	for range ticker.C {
+		monitorNetworkStatus(adminNode)
 		monitorStorageNodeOnce(&config, db, storageNodes, userStorageNodes)
 		monitorKvNodeOnce(&config, db, kvNodes, userKvNodes)
 	}
@@ -155,6 +161,10 @@ func CreateDBClients(config DBConfig) (*sql.DB, error) {
 	}
 
 	return db, nil
+}
+
+func monitorNetworkStatus(adminNode *AdminNode) {
+	adminNode.CheckDiscoveredPeers()
 }
 
 func monitorStorageNodeOnce(config *Config, db *sql.DB, storageNodes, userNodes []*StorageNode) {
