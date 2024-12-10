@@ -4,11 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/0glabs/0g-monitor/utils"
 	"github.com/0glabs/0g-storage-client/node"
 	"github.com/Conflux-Chain/go-conflux-util/health"
+	"github.com/Conflux-Chain/go-conflux-util/metrics"
 	providers "github.com/openweb3/go-rpc-provider/provider_wrapper"
 
 	"github.com/sirupsen/logrus"
@@ -55,12 +57,37 @@ func NewStorageNode(discordId, validatorAddress, ip string) (*StorageNode, error
 	}, nil
 }
 
-func (storageNode *StorageNode) CheckStatus(config health.TimedCounterConfig) {
-	_, err := storageNode.client.GetStatus(context.Background())
+func (storageNode *StorageNode) CheckStatus(config health.TimedCounterConfig, blockGap uint64) {
+	status, err := storageNode.client.GetStatus(context.Background())
 	if logrus.IsLevelEnabled(logrus.DebugLevel) {
 		logrus.WithFields(logrus.Fields{
 			"ip": storageNode.ip,
 		}).Debug("Storage node status report")
+	}
+
+	if err == nil {
+		height, parseErr := strconv.ParseUint(status.LogSyncBlock.String(), 0, 64)
+		if parseErr != nil {
+			logrus.WithFields(logrus.Fields{
+				"ip": storageNode.ip,
+			}).WithError(parseErr).Warn("Failed to parse block number")
+		} else {
+			blockHeight, rpcErr := utils.GetBlockNumber(utils.BlockChainRpc)
+			if rpcErr != nil {
+				logrus.WithFields(logrus.Fields{
+					"ip": storageNode.ip,
+				}).WithError(rpcErr).Warn("Failed to query block number")
+			} else {
+				metrics.GetOrRegisterGauge("storage_node/storage_layer/block/behind/%v", storageNode.discordId).Update(int64(blockHeight - height))
+				if blockHeight-height >= blockGap {
+					logrus.WithFields(logrus.Fields{
+						"blockHeight": blockHeight,
+						"height":      height,
+						"ip":          storageNode.ip,
+					}).Warn("Storage node is behind")
+				}
+			}
+		}
 	}
 
 	if err != nil {

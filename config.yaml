@@ -109,12 +109,13 @@
 # Storage Service Monitoring Configurations
 # storage:
 #   nodes:
-#     node0: http://ip0:5678
-#     node1: http://ip1:5678
+#     storagenodessd0: http://ip0:5678
+#     storagenodehdd0: http://ip1:5678
 #   kvNodes:
-#     node0: http://ip0:6789
-#     node1: http://ip1:6789
+#     kvnodessd0: http://ip0:6789
+#     kvnodehdd0: http://ip1:6789
 #   interval: 600s
+#   blockGap: 10
 #   storageNodeReport:
 #     threshold: 120m
 #     remind: 120m
