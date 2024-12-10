@@ -6,10 +6,13 @@ import (
 	"io"
 	"os"
 	"strings"
+
+	"strings"
 	"time"
 
 	"github.com/Conflux-Chain/go-conflux-util/health"
 	"github.com/Conflux-Chain/go-conflux-util/viper"
+
 	"github.com/go-gota/gota/dataframe"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/sirupsen/logrus"
@@ -26,6 +29,7 @@ type DBConfig struct {
 
 type Config struct {
 	Interval          time.Duration `default:"600s"`
+	BlockGap          uint64        `default:"10"`
 	Nodes             map[string]string
 	KvNodes           map[string]string
 	StorageNodeReport health.TimedCounterConfig
@@ -65,7 +69,16 @@ func Monitor(config Config) {
 	}).Info("Start to monitor kv services")
 
 	var storageNodes []*StorageNode
+	var ssd_cnt int = 0
+	var hdd_cnt int = 0
 	for name, ip := range config.Nodes {
+		if strings.HasPrefix(name, "ssd") {
+			name = fmt.Sprintf("storage_node_ssd_%d", ssd_cnt)
+			ssd_cnt++
+		} else {
+			name = fmt.Sprintf("storage_node_hdd_%d", hdd_cnt)
+			hdd_cnt++
+		}
 		logrus.WithField("name", name).WithField("ip", ip).Debug("Start to monitor storage node")
 		storageNodes = append(storageNodes, MustNewStorageNode(name, name, ip))
 	}
@@ -156,7 +169,7 @@ func CreateDBClients(config DBConfig) (*sql.DB, error) {
 
 func monitorStorageNodeOnce(config *Config, db *sql.DB, storageNodes, userNodes []*StorageNode) {
 	for _, v := range storageNodes {
-		v.CheckStatus(config.StorageNodeReport)
+		v.CheckStatus(config.StorageNodeReport, config.BlockGap)
 	}
 
 	for _, v := range userNodes {
