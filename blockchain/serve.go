@@ -26,7 +26,6 @@ type Config struct {
 }
 
 const ValidatorFile = "data/validator_rpcs.csv"
-const BlockChainRpc = "https://evmrpc-test-us.0g.ai"
 
 func MustMonitorFromViper() {
 	var config Config
