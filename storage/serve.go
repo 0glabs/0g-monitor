@@ -6,10 +6,12 @@ import (
 	"io"
 	"os"
 	"strings"
+
 	"time"
 
 	"github.com/Conflux-Chain/go-conflux-util/health"
 	"github.com/Conflux-Chain/go-conflux-util/viper"
+
 	"github.com/go-gota/gota/dataframe"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/sirupsen/logrus"
@@ -26,6 +28,7 @@ type DBConfig struct {
 
 type Config struct {
 	Interval          time.Duration `default:"600s"`
+	BlockGap          uint64        `default:"10"`
 	Nodes             map[string]string
 	KvNodes           map[string]string
 	StorageNodeReport health.TimedCounterConfig
@@ -156,7 +159,7 @@ func CreateDBClients(config DBConfig) (*sql.DB, error) {
 
 func monitorStorageNodeOnce(config *Config, db *sql.DB, storageNodes, userNodes []*StorageNode) {
 	for _, v := range storageNodes {
-		v.CheckStatus(config.StorageNodeReport)
+		v.CheckStatus(config.StorageNodeReport, config.BlockGap)
 	}
 
 	for _, v := range userNodes {
