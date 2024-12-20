@@ -1,55 +1,40 @@
 package cmd
 
 import (
-	"sync"
-
-	"github.com/0glabs/0g-monitor/blockchain"
+	"github.com/0glabs/0g-monitor/cmd/blockchain"
+	"github.com/0glabs/0g-monitor/cmd/da"
 	"github.com/0glabs/0g-monitor/cmd/stat"
-	"github.com/0glabs/0g-monitor/da"
-	"github.com/0glabs/0g-monitor/storage"
+	"github.com/0glabs/0g-monitor/cmd/storage"
 	"github.com/Conflux-Chain/go-conflux-util/config"
 	"github.com/Conflux-Chain/go-conflux-util/log"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
-var rootCmd = &cobra.Command{
-	Use:   "0g-monitor",
-	Short: "Daemon to monitor all 0G service status",
-	Run:   start,
-}
+var rootCmd = newRootCmd()
 
 func init() {
-	cobra.OnInitialize(initConfig)
+	cobra.OnInitialize(func() {
+		config.MustInit("ZG_MONITOR")
+	})
+}
+
+func newRootCmd() *cobra.Command {
+	rootCmd := &cobra.Command{
+		Use:   "0g-monitor",
+		Short: "Daemon to monitor all 0G service status",
+	}
+
+	rootCmd.AddCommand(
+		blockchain.NewBlockchainCmd(),
+		storage.NewStorageCmd(),
+		da.NewDaCmd(),
+		stat.Cmd,
+	)
 
 	log.BindFlags(rootCmd)
 
-	rootCmd.AddCommand(stat.Cmd)
-}
-
-func initConfig() {
-	config.MustInit("ZG_MONITOR")
-}
-
-func start(*cobra.Command, []string) {
-	var wg sync.WaitGroup
-
-	startAction(blockchain.MustMonitorFromViper, &wg)
-	startAction(storage.MustMonitorFromViper, &wg)
-	startAction(da.MustMonitorFromViper, &wg)
-
-	logrus.Warn("Monitoring service started")
-
-	wg.Wait()
-}
-
-func startAction(action func(), wg *sync.WaitGroup) {
-	wg.Add(1)
-
-	go func() {
-		defer wg.Done()
-		action()
-	}()
+	return rootCmd
 }
 
 // Execute is the command line entrypoint.
