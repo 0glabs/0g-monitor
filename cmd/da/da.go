@@ -13,12 +13,11 @@ func NewDaCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "da",
 		Short: "run da monitor",
-		RunE: func(cmd *cobra.Command, args []string) error {
+		Run: func(cmd *cobra.Command, args []string) {
 			var wg sync.WaitGroup
 			utils.StartAction(da.MustMonitorFromViper, &wg)
 			logrus.Warn("DA monitoring service started")
 			wg.Wait()
-			return nil
 		},
 	}
 

@@ -13,12 +13,11 @@ func NewStorageCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "storage",
 		Short: "run storage monitor",
-		RunE: func(cmd *cobra.Command, args []string) error {
+		Run: func(cmd *cobra.Command, args []string) {
 			var wg sync.WaitGroup
 			utils.StartAction(storage.MustMonitorFromViper, &wg)
 			logrus.Warn("Storage monitoring service started")
 			wg.Wait()
-			return nil
 		},
 	}
 

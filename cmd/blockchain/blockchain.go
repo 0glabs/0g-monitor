@@ -13,12 +13,11 @@ func NewBlockchainCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "blockchain",
 		Short: "run blockchain monitor",
-		RunE: func(cmd *cobra.Command, args []string) error {
+		Run: func(cmd *cobra.Command, args []string) {
 			var wg sync.WaitGroup
 			utils.StartAction(blockchain.MustMonitorFromViper, &wg)
 			logrus.Warn("Blockchain monitoring service started")
 			wg.Wait()
-			return nil
 		},
 	}
 
