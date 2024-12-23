@@ -1,15 +1,11 @@
 package blockchain
 
 import (
-	"fmt"
 	"net/url"
-	"os"
-	"strings"
 	"time"
 
 	"github.com/Conflux-Chain/go-conflux-util/health"
 	"github.com/Conflux-Chain/go-conflux-util/viper"
-	"github.com/go-gota/gota/dataframe"
 	"github.com/sirupsen/logrus"
 )
 
@@ -39,17 +35,6 @@ func Monitor(config Config) {
 		"validators": len(config.Validators),
 	}).Info("Start to monitor blockchain")
 
-	// if len(config.Nodes) == 0 {
-	// 	return
-	// }
-
-	f, err := os.Open(ValidatorFile)
-	if err != nil {
-		fmt.Println("Error opening csv:", err)
-		return
-	}
-	defer f.Close()
-
 	// Connect to all fullnodes
 	var nodes []*Node
 	for name, url := range config.Nodes {
@@ -64,41 +49,19 @@ func Monitor(config Config) {
 		validators = append(validators, MustNewValidator(url, name, address))
 	}
 
-	// Read the file into a dataframe
-	df := dataframe.ReadCSV(f)
-	var userNodes []*Validator
-
-	for i := 0; i < df.Nrow(); i++ {
-		discordId := df.Subset(i).Col("discord_id").Elem(0).String()
-
-		validatorAddress := df.Subset(i).Col("validator_address").Elem(0).String()
-		rpc := df.Subset(i).Col("validator_rpc").Elem(0).String()
-		ips := strings.Split(rpc, ",")
-		for _, ip := range ips {
-			ip = strings.TrimSpace(ip)
-			logrus.WithField("discord_id", discordId).WithField("ip", ip).Debug("Start to monitor user validator node")
-
-			currNode := MustNewValidator(url, validatorAddress, ip)
-			if currNode != nil {
-				userNodes = append(userNodes, currNode)
-			}
-		}
-
-	}
-
 	// Monitor once immediately
-	monitorOnce(&config, nodes, validators, userNodes)
+	monitorOnce(&config, nodes, validators)
 
 	// Monitor node status periodically
 	ticker := time.NewTicker(config.Interval)
 	defer ticker.Stop()
 
 	for range ticker.C {
-		monitorOnce(&config, nodes, validators, userNodes)
+		monitorOnce(&config, nodes, validators)
 	}
 }
 
-func monitorOnce(config *Config, nodes []*Node, validators []*Validator, userNodes []*Validator) {
+func monitorOnce(config *Config, nodes []*Node, validators []*Validator) {
 	for _, v := range nodes {
 		v.UpdateHeight(config.AvailabilityReport)
 	}
@@ -118,9 +81,5 @@ func monitorOnce(config *Config, nodes []*Node, validators []*Validator, userNod
 
 	for _, v := range validators {
 		v.Update(config.ValidatorReport)
-	}
-
-	for _, v := range userNodes {
-		v.CheckStatusSilence()
 	}
 }

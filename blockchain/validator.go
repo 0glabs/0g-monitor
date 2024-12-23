@@ -9,7 +9,6 @@ import (
 	"github.com/Conflux-Chain/go-conflux-util/health"
 	"github.com/Conflux-Chain/go-conflux-util/metrics"
 	"github.com/go-resty/resty/v2"
-	"github.com/openweb3/web3go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -102,40 +101,5 @@ func (validator *Validator) Update(config health.TimedCounterConfig) {
 		}).Warn("Validator unfailed now")
 
 		metrics.GetOrRegisterGauge("monitor/blockchain/validator/jailed/%v", validator.name).Update(0)
-	}
-}
-
-func (validator *Validator) CheckStatusSilence() {
-	isConnected := false
-
-	if strings.HasPrefix(validator.address, "http") {
-		// Connect to the RPC endpoint
-		_, err := web3go.NewClient(validator.address)
-		if err == nil {
-			isConnected = true
-		}
-	} else {
-		// Connect to the IPC endpoint
-		_, err := web3go.NewClient(fmt.Sprintf("http://%s", validator.address))
-		if err != nil {
-			_, err = web3go.NewClient(fmt.Sprintf("https://%s", validator.address))
-			if err == nil {
-				isConnected = true
-			}
-		} else {
-			isConnected = true
-		}
-	}
-
-	if isConnected {
-		logrus.WithFields(logrus.Fields{
-			"address": validator.name,
-			"ip":      validator.address,
-		}).Info("Validator connection succeeded")
-	} else {
-		logrus.WithFields(logrus.Fields{
-			"address": validator.name,
-			"ip":      validator.address,
-		}).Info("Validator connection failed")
 	}
 }
