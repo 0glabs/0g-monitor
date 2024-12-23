@@ -7,6 +7,7 @@ toolchain go1.22.6
 require (
 	github.com/0glabs/0g-storage-client v0.6.1-0.20240918080436-af5b003aa10e
 	github.com/Conflux-Chain/go-conflux-util v0.2.2-0.20240906102034-37b696c13558
+	github.com/emirpasic/gods v1.18.1
 	github.com/ethereum/go-ethereum v1.14.7
 	github.com/go-gota/gota v0.12.0
 	github.com/go-resty/resty/v2 v2.14.0

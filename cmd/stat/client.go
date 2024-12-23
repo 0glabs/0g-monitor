@@ -5,6 +5,8 @@ import (
 	"fmt"
 
 	"github.com/0glabs/0g-storage-client/node"
+	"github.com/emirpasic/gods/maps/treemap"
+	"github.com/emirpasic/gods/utils"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -56,22 +58,28 @@ func statClient(*cobra.Command, []string) {
 
 	fmt.Println("Total peers:", len(peers))
 
-	statPeers("Seen IP Count Stat:", peers, func(pi *node.PeerInfo) any { return len(pi.SeenIps) })
-	statPeers("OS Stat:", peers, func(pi *node.PeerInfo) any { return pi.Client.OS })
-	statPeers("Protocol Stat:", peers, func(pi *node.PeerInfo) any { return pi.Client.Protocol })
-	statPeers("Version Stat:", peers, func(pi *node.PeerInfo) any { return pi.Client.Version })
+	statPeers("Seen IP Count Stat:", peers, func(pi *node.PeerInfo) any { return len(pi.SeenIps) }, utils.IntComparator)
+	statPeers("OS Stat:", peers, func(pi *node.PeerInfo) any { return pi.Client.OS }, utils.StringComparator)
+	statPeers("Protocol Stat:", peers, func(pi *node.PeerInfo) any { return pi.Client.Protocol }, utils.StringComparator)
+	statPeers("Version Stat:", peers, func(pi *node.PeerInfo) any { return pi.Client.Version }, CompareGitVersionString)
 }
 
-func statPeers(label string, peers map[string]*node.PeerInfo, statFunc func(*node.PeerInfo) any) {
-	result := make(map[any]int)
+func statPeers(label string, peers map[string]*node.PeerInfo, statFunc func(*node.PeerInfo) any, comparator utils.Comparator) {
+	result := treemap.NewWith(comparator)
 
 	for _, v := range peers {
-		val := statFunc(v)
-		result[val]++
+		key := statFunc(v)
+
+		if val, ok := result.Get(key); ok {
+			result.Put(key, val.(int)+1)
+		} else {
+			result.Put(key, 1)
+		}
 	}
 
 	fmt.Println(label)
-	for val, count := range result {
-		fmt.Printf("\t%v: %v\n", val, count)
-	}
+
+	result.Each(func(key, value interface{}) {
+		fmt.Printf("\t%v: %v\n", key, value)
+	})
 }
