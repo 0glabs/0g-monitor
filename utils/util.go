@@ -5,14 +5,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
+	"strings"
 	"time"
 )
 
 func PrettyElapsed(elapsed time.Duration) string {
 	return fmt.Sprint(elapsed.Truncate(time.Second))
 }
-
 
 func GetBlockNumber(url string) (uint64, error) {
 	reqBody := map[string]interface{}{
@@ -44,4 +45,18 @@ func GetBlockNumber(url string) (uint64, error) {
 	// Get the block height from the response
 	blockNumber := respBody["result"].(string)
 	return strconv.ParseUint(blockNumber, 0, 64)
+}
+
+func ReplacePort(originalURL string, newPort string) (string, error) {
+	parsedURL, err := url.Parse(originalURL)
+	if err != nil {
+		return "", err
+	}
+
+	if !strings.Contains(parsedURL.Host, ":") {
+		parsedURL.Host = parsedURL.Host + ":" + newPort
+	} else {
+		parsedURL.Host = strings.Split(parsedURL.Host, ":")[0] + ":" + newPort
+	}
+	return parsedURL.String(), nil
 }
