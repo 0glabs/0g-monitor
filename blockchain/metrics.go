@@ -9,6 +9,9 @@ const (
 	blockHeightBehindPattern   = "monitor/blockchain/block/height/behind/%v"
 	blockHeightUnhealthPattern = "monitor/blockchain/block/height/unhealth/%v"
 
+	// count of tx in block
+	blockTxCountPattern = "monitor/blockchain/block/tx/count"
+
 	// chain
 	chainForkPattern = "monitor/blockchain/fork/%v"
 	// ethermint rpc

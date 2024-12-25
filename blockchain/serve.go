@@ -1,6 +1,7 @@
 package blockchain
 
 import (
+	"fmt"
 	"net/url"
 	"sync"
 	"time"
@@ -69,6 +70,8 @@ func createMetricsForChain() {
 
 	metrics.GetOrRegisterGauge(failedTxCountUnhealthPattern).Update(0)
 	metrics.GetOrRegisterHistogram(failedTxCountPattern).Update(0)
+
+	metrics.GetOrRegisterHistogram(blockTxCountPattern).Update(0)
 }
 
 func monitorOnce(config *Config, nodes []*Node, validators []*Validator, mempool *Mempool) {
@@ -131,7 +134,12 @@ func countFailedTx(statusMap map[string]bool) int {
 
 func monitorTxFailures(config *Config, nodes []*Node, txInfo *BlockTxInfo) {
 	if txInfo != nil {
-		if len(txInfo.TxHashes) > 0 {
+		blockTxCnt := len(txInfo.TxHashes)
+		metrics.GetOrRegisterHistogram(blockTxCountPattern).Update(int64(blockTxCnt))
+
+		logrus.Debug(fmt.Sprintf("Block (%d) tx count: %d", txInfo.Height, blockTxCnt))
+
+		if blockTxCnt > 0 {
 			index := int(time.Now().UnixNano() % int64(len(nodes)))
 			statusMap, err := nodes[index].FetchBlockReceiptStatus(config.NodeHeightReport.TimedCounterConfig, txInfo.Height)
 			if err != nil {
@@ -174,6 +182,8 @@ func monitorTxFailures(config *Config, nodes []*Node, txInfo *BlockTxInfo) {
 				}
 			}
 		}
+	} else {
+		metrics.GetOrRegisterHistogram(blockTxCountPattern).Update(0)
 	}
 }
 
