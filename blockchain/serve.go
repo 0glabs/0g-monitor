@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/0glabs/0g-monitor/utils"
 	"github.com/Conflux-Chain/go-conflux-util/metrics"
 	"github.com/Conflux-Chain/go-conflux-util/viper"
 	"github.com/go-gota/gota/dataframe"
@@ -134,27 +133,26 @@ func monitorOnce(config *Config, nodes []*Node, validators []*Validator, userNod
 	monitorMempool(config, mempool)
 }
 
+func countFailedTx(statusMap map[string]bool) int {
+	failedCnt := 0
+	for _, status := range statusMap {
+		if !status {
+			failedCnt++
+		}
+	}
+	return failedCnt
+}
+
 func monitorTxFailures(config *Config, nodes []*Node, txInfo *BlockTxInfo) {
 	if txInfo != nil {
 		if len(txInfo.TxHashes) > 0 {
-			swg := utils.NewSizedWaitGroup(len(nodes))
-
-			for i := range txInfo.TxHashes {
-				swg.Add()
-				go func(node *Node, hash string) {
-					defer swg.Done()
-					isSuccess, err := node.FetchTxReceiptStatus(config.NodeHeightReport.TimedCounterConfig, hash)
-					if err == nil {
-						if !isSuccess {
-							defer blockFailedTxCntLock.Unlock()
-							blockFailedTxCntLock.Lock()
-
-							blockFailedTxCntRecord[node.currentBlockInfo.Height] += 1
-						}
-					}
-				}(nodes[i%len(nodes)], txInfo.TxHashes[i])
+			index := int(time.Now().UnixNano() % int64(len(nodes)))
+			statusMap, err := nodes[index].FetchBlockReceiptStatus(config.NodeHeightReport.TimedCounterConfig, txInfo.Height)
+			if err != nil {
+				return
 			}
-			swg.Wait()
+
+			blockFailedTxCntRecord[txInfo.Height] = countFailedTx(statusMap)
 		}
 
 		totalTxCnt, failedTxCnt := 0, 0
@@ -172,7 +170,8 @@ func monitorTxFailures(config *Config, nodes []*Node, txInfo *BlockTxInfo) {
 		}
 
 		metrics.GetOrRegisterHistogram(failedTxCountPattern).Update(int64(failedTxCnt))
-		if failedTxCnt > 0 && failedTxCnt*100/totalTxCnt > config.FailedTxCntAlarmThreshold {
+		percentage := float64(failedTxCnt*100) / float64(totalTxCnt)
+		if failedTxCnt > 0 && percentage-float64(config.FailedTxCntAlarmThreshold) > 0 {
 			metrics.GetOrRegisterGauge(failedTxCountUnhealthPattern).Update(1)
 		} else {
 			metrics.GetOrRegisterGauge(failedTxCountUnhealthPattern).Update(0)
@@ -203,8 +202,8 @@ func monitorValidator(config *Config, validators []*Validator) {
 
 	activeValidatorCount := len(validators) - jailedCnt
 	metrics.GetOrRegisterHistogram(validatorActiveCountPattern).Update(int64(activeValidatorCount))
-
-	if 100*float64(activeValidatorCount)/float64(len(validators)) <= 67 {
+	percentage := 100 * float64(activeValidatorCount) / float64(len(validators))
+	if percentage-float64(67) >= 0 {
 		metrics.GetOrRegisterGauge(validatorActiveCountUnhealthPattern).Update(1)
 	} else {
 		metrics.GetOrRegisterGauge(validatorActiveCountUnhealthPattern).Update(0)
@@ -217,7 +216,9 @@ func monitorMempool(config *Config, mempool *Mempool) {
 	unconfirmedTxCnt := mempool.UpdateUncommitTxCnt(config.MempoolReport.TimedCounterConfig)
 
 	metrics.GetOrRegisterHistogram(mempoolUncommitTxCntPattern).Update(int64(unconfirmedTxCnt))
-	if float64(unconfirmedTxCnt*100)/float64(config.MempoolReport.PoolSize)-float64(config.MempoolReport.AlarmThreshold) > 0 {
+	percentage := float64(unconfirmedTxCnt*100) / float64(config.MempoolReport.PoolSize)
+	logrus.Debug("Mempool status report: unconfirmed tx count = ", unconfirmedTxCnt, ", percentage = ", percentage)
+	if percentage-float64(config.MempoolReport.AlarmThreshold) > 0 {
 		metrics.GetOrRegisterGauge(mempoolHighLoadPattern).Update(1)
 	} else {
 		metrics.GetOrRegisterGauge(mempoolHighLoadPattern).Update(0)

@@ -3,6 +3,7 @@ package blockchain
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 )
@@ -99,4 +100,45 @@ func EthFetchTxReceiptStatus(url string, txHash string) (uint64, error) {
 	}
 
 	return statusCode, nil
+}
+
+func EthFetchBlockReceiptStatus(url string, height uint64) (map[string]bool, error) {
+	reqBody := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"method":  "eth_getBlockReceipts",
+		"params":  []interface{}{fmt.Sprintf("0x%x", height)},
+		"id":      1,
+	}
+
+	// Encode the request body to JSON
+	reqBytes, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, err
+	}
+
+	// Send the HTTP POST request
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(reqBytes))
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	// Decode the JSON response
+	var respBody map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&respBody); err != nil {
+		return nil, err
+	}
+
+	result := respBody["result"].([]interface{})
+
+	statusMap := make(map[string]bool, len(result))
+
+	for _, txr := range result {
+		r := txr.(map[string]interface{})
+		statusStr := r["status"].(string)
+		txHash := r["transactionHash"].(string)
+		statusMap[txHash] = statusStr == "0x1"
+	}
+
+	return statusMap, nil
 }

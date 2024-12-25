@@ -121,6 +121,7 @@ func (node *Node) UpdateHeight(config AvailabilityReport) {
 			node.currentBlockInfo.Height = info.Height
 			node.currentBlockInfo.Timestamp = info.Timestamp
 			node.currentBlockInfo.Hash = info.Hash
+			node.currentBlockInfo.TxHashes = info.TxHashes
 
 			return nil
 		},
@@ -282,4 +283,61 @@ func (node *Node) FetchTxReceiptStatus(config health.TimedCounterConfig, txHash 
 		return true, nil
 	}
 	return false, nil
+}
+
+func (node *Node) FetchBlockReceiptStatus(config health.TimedCounterConfig, height uint64) (map[string]bool, error) {
+	var statusMap map[string]bool
+	err := executeRequest(
+		func() error {
+			var err error
+			statusMap, err = EthFetchBlockReceiptStatus(node.url, height)
+			if err != nil {
+				return err
+			}
+			return nil
+		},
+		func(err error, unhealthy, unrecovered bool, elapsed time.Duration) {
+			logrus.WithError(err).WithField("node", node.name).Debug("Failed to query tx receipt status")
+
+			node.ethRpcError = err.Error()
+
+			// log unhealthy
+			if unhealthy {
+				logrus.WithFields(logrus.Fields{
+					"node":    node.name,
+					"elapsed": utils.PrettyElapsed(elapsed),
+					"error":   node.rpcError,
+				}).Error("Node ethermint RPC became unhealthy")
+			}
+
+			// remind unhealthy
+			if unrecovered {
+				logrus.WithFields(logrus.Fields{
+					"node":     node.name,
+					"elapsed":  utils.PrettyElapsed(elapsed),
+					"rpcError": node.rpcError,
+				}).Error("Node ethermint RPC not recovered yet")
+			}
+		},
+		func(recovered bool, elapsed time.Duration) {
+			node.ethRpcError = ""
+
+			// log on recovered
+			if recovered {
+				logrus.WithFields(logrus.Fields{
+					"node":    node.name,
+					"elapsed": utils.PrettyElapsed(elapsed),
+				}).Warn("Node ethermint RPC is healthy now")
+			}
+		},
+		nodeEthRpcLatencyPattern, nodeEthRpcUnhealthPattern, node.name,
+		&node.ethRpcHealth,
+		config,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return statusMap, nil
 }
