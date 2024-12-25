@@ -1,15 +1,12 @@
 package blockchain
 
 import (
-	"fmt"
 	"net/url"
-	"strconv"
 	"time"
 
 	"github.com/0glabs/0g-monitor/utils"
 	"github.com/Conflux-Chain/go-conflux-util/health"
 	"github.com/Conflux-Chain/go-conflux-util/metrics"
-	"github.com/go-resty/resty/v2"
 	"github.com/sirupsen/logrus"
 )
 
@@ -23,20 +20,24 @@ type Node struct {
 	name string
 	url  string
 
-	height uint64 // fullnode block number
+	currentBlockInfo BlockInfo
 
 	rpcHealth health.TimedCounter
 	rpcError  string // last rpc error message
 
 	heightHealth health.TimedCounter
+
+	lastBlockGap   uint64
+	blockGapHealth health.TimedCounter
+
+	ethRpcHealth health.TimedCounter
+	ethRpcError  string // last rpc error message
 }
 
 func MustNewNode(name, urlstr string) *Node {
 	url, _ := url.Parse(urlstr)
-	// url.Path = "status"
 
-	metrics.GetOrRegisterGauge("monitor/blockchain/rpc/height/unhealth/%v", name).Update(0)
-	metrics.GetOrRegisterGauge("monitor/blockchain/height/behind/%v", name).Update(0)
+	createMetricsForNode(name)
 
 	return &Node{
 		name: name,
@@ -44,112 +45,145 @@ func MustNewNode(name, urlstr string) *Node {
 	}
 }
 
-func fetchHeight(url string) (uint64, error) {
+func createMetricsForNode(name string) {
+	metrics.GetOrRegisterHistogram(blockHeightBehindPattern, name).Update(0)
+	metrics.GetOrRegisterGauge(blockHeightUnhealthPattern, name).Update(0)
 
-	var result map[string]interface{}
-	client := resty.New()
-	resp, err := client.R().SetResult(&result).Get(url)
-	if err != nil || resp.IsError() {
-		return 0, err
-	}
-	height, err := strconv.Atoi(result["result"].(map[string]interface{})["sync_info"].(map[string]interface{})["latest_block_height"].(string))
-	if err != nil {
-		return 0, err
-	}
-	return uint64(height), nil
+	metrics.GetOrRegisterGauge(chainForkPattern, name).Update(0)
+
+	metrics.GetOrRegisterHistogram(blockCollatedGapPattern, name).Update(0)
+	metrics.GetOrRegisterGauge(blockCollatedGapUnhealthPattern, name).Update(0)
 }
 
-func (node *Node) UpdateHeight(config health.TimedCounterConfig) {
-	start := time.Now()
-	height, err := utils.GetBlockNumber(node.url)
-	elapsed := time.Since(start).Nanoseconds()
-	metrics.GetOrRegisterHistogram("monitor/blockchain/rpc/height/latency/%v", node.name).Update(elapsed)
-	if err != nil {
-		logrus.WithError(err).WithField("node", node.name).Debug("Failed to query block number")
+func (node *Node) UpdateHeight(config AvailabilityReport) {
+	var info BlockInfo
+	executeRequest(
+		func() error {
+			var err error
+			info, err = EthGetLatestBlockInfo(node.url)
+			if err != nil {
+				logrus.WithError(err).WithField("node", node.name).Debug("Failed to query block number")
+				return err
+			}
 
-		node.rpcError = err.Error()
-		unhealthy, unrecovered, elapsed := node.rpcHealth.OnFailure(config)
+			if info.Height < node.currentBlockInfo.Height {
+				logrus.WithFields(logrus.Fields{
+					"node":     node.name,
+					"old":      node.currentBlockInfo.Height,
+					"new":      info.Height,
+					"reverted": node.currentBlockInfo.Height - info.Height,
+				}).Warn("Block reorg detected")
+			}
 
-		// report unhealthy
-		if unhealthy {
-			logrus.WithFields(logrus.Fields{
-				"node":    node.name,
-				"elapsed": prettyElapsed(elapsed),
-				"error":   node.rpcError,
-			}).Error("Node RPC became unhealthy")
+			if node.currentBlockInfo.Height != info.Height {
+				latest := node.lastBlockGap
+				node.lastBlockGap = info.Timestamp - node.currentBlockInfo.Timestamp
 
-			metrics.GetOrRegisterGauge("monitor/blockchain/rpc/height/unhealth/%v", node.name).Update(1)
-		}
+				if latest > 0 { // skip first report
+					metrics.GetOrRegisterHistogram(blockCollatedGapPattern, node.name).Update(int64(node.lastBlockGap))
 
-		// remind unhealthy
-		if unrecovered {
-			logrus.WithFields(logrus.Fields{
-				"node":     node.name,
-				"elapsed":  prettyElapsed(elapsed),
-				"rpcError": node.rpcError,
-			}).Error("Node RPC not recovered yet")
-		}
-	} else {
-		metrics.GetOrRegisterHistogram("monitor/blockchain/rpc/height/latency/success/%v", node.name).Update(elapsed)
+					if node.lastBlockGap > config.MaxGap {
+						unhealthy, unrecovered, elapsed := node.blockGapHealth.OnFailure(config.TimedCounterConfig)
 
-		// check reorg
-		if height < node.height {
-			logrus.WithFields(logrus.Fields{
-				"node":     node.name,
-				"old":      node.height,
-				"new":      height,
-				"reverted": node.height - height,
-			}).Warn("Block reorg detected")
-		}
+						if unhealthy {
+							logrus.WithFields(logrus.Fields{
+								"node":         node.name,
+								"height":       node.currentBlockInfo.Height,
+								"hash":         node.currentBlockInfo.Hash,
+								"collated_gap": node.lastBlockGap,
+								"elapsed":      utils.PrettyElapsed(elapsed),
+							}).Error("Node block collated gap became unhealthy")
+							metrics.GetOrRegisterGauge(blockCollatedGapUnhealthPattern, node.name).Update(1)
+						}
 
-		node.height = height
-		node.rpcError = ""
+						// remind unhealthy
+						if unrecovered {
+							logrus.WithFields(logrus.Fields{
+								"node":         node.name,
+								"elapsed":      utils.PrettyElapsed(elapsed),
+								"height":       node.currentBlockInfo.Height,
+								"hash":         node.currentBlockInfo.Hash,
+								"collated_gap": node.lastBlockGap,
+							}).Error("Node block collated gap not recovered yet")
+						}
+					} else {
+						if recovered, elapsed := node.blockGapHealth.OnSuccess(config.TimedCounterConfig); recovered {
+							logrus.WithFields(logrus.Fields{
+								"node":    node.name,
+								"elapsed": utils.PrettyElapsed(elapsed),
+							}).Warn("Node block collated gap is healthy now")
+							metrics.GetOrRegisterGauge(blockCollatedGapUnhealthPattern, node.name).Update(0)
+						}
+					}
+				}
+			}
 
-		// report on recovered
-		if recovered, elapsed := node.rpcHealth.OnSuccess(config); recovered {
-			logrus.WithFields(logrus.Fields{
-				"node":    node.name,
-				"elapsed": prettyElapsed(elapsed),
-			}).Warn("Node RPC is healthy now")
+			node.currentBlockInfo.Height = info.Height
+			node.currentBlockInfo.Timestamp = info.Timestamp
+			node.currentBlockInfo.Hash = info.Hash
 
-			metrics.GetOrRegisterGauge("monitor/blockchain/rpc/height/unhealth/%v", node.name).Update(0)
-		}
-	}
-}
+			return nil
+		},
+		func(err error, unhealthy, unrecovered bool, elapsed time.Duration) {
+			node.ethRpcError = err.Error()
+			// report unhealthy
+			if unhealthy {
+				logrus.WithFields(logrus.Fields{
+					"node":    node.name,
+					"elapsed": utils.PrettyElapsed(elapsed),
+					"error":   node.ethRpcError,
+				}).Error("Node ethermint RPC became unhealthy")
+			}
 
-func FindMaxBlockHeight(nodes []*Node) uint64 {
-	max := uint64(0)
+			// remind unhealthy
+			if unrecovered {
+				logrus.WithFields(logrus.Fields{
+					"node":     node.name,
+					"elapsed":  utils.PrettyElapsed(elapsed),
+					"rpcError": node.ethRpcError,
+				}).Error("Node ethermint RPC not recovered yet")
+			}
+		},
+		func(recovered bool, elapsed time.Duration) {
+			node.ethRpcError = ""
 
-	for _, v := range nodes {
-		if v.rpcHealth.IsSuccess() && max < v.height {
-			max = v.height
-		}
-	}
-
-	return max
+			// report on recovered
+			if recovered {
+				logrus.WithFields(logrus.Fields{
+					"node":    node.name,
+					"elapsed": utils.PrettyElapsed(elapsed),
+				}).Warn("Node ethermint RPC is healthy now")
+			}
+		},
+		nodeEthRpcLatencyPattern, nodeEthRpcUnhealthPattern, node.name,
+		&node.ethRpcHealth,
+		config.TimedCounterConfig,
+	)
 }
 
 func (node *Node) CheckHeight(config *HeightReportConfig, target uint64) {
 	// ignore on rpc error
-	if !node.rpcHealth.IsSuccess() {
+	if !node.ethRpcHealth.IsSuccess() {
 		return
 	}
 
 	// number of blocks fall behind
 	var behind uint64
-	if node.height < target {
-		behind = target - node.height
+	if node.currentBlockInfo.Height < target {
+		behind = target - node.currentBlockInfo.Height
 	}
 
+	metrics.GetOrRegisterHistogram(blockHeightBehindPattern, node.name).Update(int64(behind))
 	if behind <= config.MaxGap {
+		metrics.GetOrRegisterGauge(blockHeightUnhealthPattern, node.name).Update(0)
+
 		if recovered, elapsed := node.heightHealth.OnSuccess(config.TimedCounterConfig); recovered {
 			logrus.WithFields(logrus.Fields{
 				"node":    node.name,
-				"elapsed": prettyElapsed(elapsed),
+				"elapsed": utils.PrettyElapsed(elapsed),
 				"behind":  behind,
 			}).Warn("Node block height is healthy now")
-
-			metrics.GetOrRegisterGauge("monitor/blockchain/height/behind/%v", node.name).Update(0)
+			metrics.GetOrRegisterGauge(blockHeightUnhealthPattern, node.name).Update(0)
 		}
 	} else {
 		unhealthy, unrecovered, elapsed := node.heightHealth.OnFailure(config.TimedCounterConfig)
@@ -157,23 +191,95 @@ func (node *Node) CheckHeight(config *HeightReportConfig, target uint64) {
 		if unhealthy {
 			logrus.WithFields(logrus.Fields{
 				"node":    node.name,
-				"elapsed": prettyElapsed(elapsed),
+				"elapsed": utils.PrettyElapsed(elapsed),
 				"behind":  behind,
 			}).Error("Node block height became unhealthy")
-
-			metrics.GetOrRegisterGauge("monitor/blockchain/height/behind/%v", node.name).Update(1)
+			metrics.GetOrRegisterGauge(blockHeightUnhealthPattern, node.name).Update(1)
 		}
 
 		if unrecovered {
 			logrus.WithFields(logrus.Fields{
 				"node":    node.name,
-				"elapsed": prettyElapsed(elapsed),
+				"elapsed": utils.PrettyElapsed(elapsed),
 				"behind":  behind,
 			}).Error("Node block height not recovered yet")
 		}
 	}
 }
 
-func prettyElapsed(elapsed time.Duration) string {
-	return fmt.Sprint(elapsed.Truncate(time.Second))
+func (node *Node) CheckFork(recordor map[uint64]string) {
+	if existedHash, ok := recordor[node.currentBlockInfo.Height]; !ok {
+		recordor[node.currentBlockInfo.Height] = node.currentBlockInfo.Hash
+	} else {
+		if node.currentBlockInfo.Hash != existedHash {
+			// detected fork!
+			logrus.WithFields(logrus.Fields{
+				"node":         node.name,
+				"height":       node.currentBlockInfo.Height,
+				"hash":         node.currentBlockInfo.Hash,
+				"existed_hash": existedHash,
+			}).Error("Node block hash is different from existed one")
+			metrics.GetOrRegisterGauge(chainForkPattern, node.name).Update(1)
+		}
+	}
+}
+
+func (node *Node) FetchTxReceiptStatus(config health.TimedCounterConfig, txHash string) (bool, error) {
+	var statusCode uint64
+	err := executeRequest(
+		func() error {
+			var err error
+			statusCode, err = EthFetchTxReceiptStatus(node.url, txHash)
+			if err != nil {
+				return err
+			}
+			return nil
+		},
+		func(err error, unhealthy, unrecovered bool, elapsed time.Duration) {
+			logrus.WithError(err).WithField("node", node.name).Debug("Failed to query tx receipt status")
+
+			node.ethRpcError = err.Error()
+
+			// log unhealthy
+			if unhealthy {
+				logrus.WithFields(logrus.Fields{
+					"node":    node.name,
+					"elapsed": utils.PrettyElapsed(elapsed),
+					"error":   node.rpcError,
+				}).Error("Node ethermint RPC became unhealthy")
+			}
+
+			// remind unhealthy
+			if unrecovered {
+				logrus.WithFields(logrus.Fields{
+					"node":     node.name,
+					"elapsed":  utils.PrettyElapsed(elapsed),
+					"rpcError": node.rpcError,
+				}).Error("Node ethermint RPC not recovered yet")
+			}
+		},
+		func(recovered bool, elapsed time.Duration) {
+			node.ethRpcError = ""
+
+			// log on recovered
+			if recovered {
+				logrus.WithFields(logrus.Fields{
+					"node":    node.name,
+					"elapsed": utils.PrettyElapsed(elapsed),
+				}).Warn("Node ethermint RPC is healthy now")
+			}
+		},
+		nodeEthRpcLatencyPattern, nodeEthRpcUnhealthPattern, node.name,
+		&node.ethRpcHealth,
+		config,
+	)
+
+	if err != nil {
+		return false, err
+	}
+
+	if statusCode == 1 {
+		return true, nil
+	}
+	return false, nil
 }

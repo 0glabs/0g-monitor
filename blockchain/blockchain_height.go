@@ -1,6 +1,7 @@
 package blockchain
 
 import (
+	"github.com/0glabs/0g-monitor/utils"
 	"github.com/Conflux-Chain/go-conflux-util/health"
 	"github.com/Conflux-Chain/go-conflux-util/metrics"
 	"github.com/sirupsen/logrus"
@@ -15,18 +16,18 @@ type BlockchainHeightHealth struct {
 
 func (bhh *BlockchainHeightHealth) Update(config health.TimedCounterConfig, height uint64) {
 	if bhh.height == 0 {
-		metrics.GetOrRegisterGauge("monitor/blockchain/height/halt").Update(0)
+		metrics.GetOrRegisterGauge(chainHeightHaltPattern).Update(0)
 	}
 
 	if height > bhh.height {
 		if recovered, elapsed := bhh.health.OnSuccess(config); recovered {
 			logrus.WithFields(logrus.Fields{
-				"elapsed": prettyElapsed(elapsed),
+				"elapsed": utils.PrettyElapsed(elapsed),
 				"old":     bhh.height,
 				"new":     height,
 			}).Warn("Blockchain height is growing again")
 
-			metrics.GetOrRegisterGauge("monitor/blockchain/height/halt").Update(0)
+			metrics.GetOrRegisterGauge(chainHeightHaltPattern).Update(0)
 		}
 
 		bhh.height = height
@@ -40,16 +41,16 @@ func (bhh *BlockchainHeightHealth) Update(config health.TimedCounterConfig, heig
 
 		if unhealthy {
 			logrus.WithFields(logrus.Fields{
-				"elapsed": prettyElapsed(elapsed),
+				"elapsed": utils.PrettyElapsed(elapsed),
 				"height":  newHeight,
 			}).Error("Blockchain height stops growing")
 
-			metrics.GetOrRegisterGauge("monitor/blockchain/height/halt").Update(1)
+			metrics.GetOrRegisterGauge(chainHeightHaltPattern).Update(1)
 		}
 
 		if unrecovered {
 			logrus.WithFields(logrus.Fields{
-				"elapsed": prettyElapsed(elapsed),
+				"elapsed": utils.PrettyElapsed(elapsed),
 				"height":  newHeight,
 			}).Error("Blockchain height stops growing for a long time and not recovered yet")
 		}
