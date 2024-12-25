@@ -1,16 +1,12 @@
 package blockchain
 
 import (
-	"fmt"
 	"net/url"
-	"os"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/Conflux-Chain/go-conflux-util/metrics"
 	"github.com/Conflux-Chain/go-conflux-util/viper"
-	"github.com/go-gota/gota/dataframe"
 	"github.com/sirupsen/logrus"
 )
 
@@ -50,25 +46,20 @@ func Monitor(config Config) {
 		validators = append(validators, MustNewValidator(url, name, address))
 	}
 
-	var userNodes []*Validator
-	if config.Mode != "localtest" {
-		userNodes = loadUserNodeInfo(url)
-	}
-
 	mempool := MustNewMempool(config.CometbftRPC)
 
 	blockTxCntRecord = make(map[uint64]int, config.BlockTxCntLimit)
 	blockFailedTxCntRecord = make(map[uint64]int, config.BlockTxCntLimit)
 
 	// Monitor once immediately
-	monitorOnce(&config, nodes, validators, userNodes, mempool)
+	monitorOnce(&config, nodes, validators, mempool)
 
 	// Monitor node status periodically
 	ticker := time.NewTicker(config.Interval)
 	defer ticker.Stop()
 
 	for range ticker.C {
-		monitorOnce(&config, nodes, validators, userNodes, mempool)
+		monitorOnce(&config, nodes, validators, mempool)
 	}
 }
 
@@ -80,7 +71,7 @@ func createMetricsForChain() {
 	metrics.GetOrRegisterHistogram(failedTxCountPattern).Update(0)
 }
 
-func monitorOnce(config *Config, nodes []*Node, validators []*Validator, userNodes []*Validator, mempool *Mempool) {
+func monitorOnce(config *Config, nodes []*Node, validators []*Validator, mempool *Mempool) {
 	blockSwitched := false
 	var blockTxInfo *BlockTxInfo
 	for _, v := range nodes {
@@ -124,11 +115,6 @@ func monitorOnce(config *Config, nodes []*Node, validators []*Validator, userNod
 
 	// update validator status
 	monitorValidator(config, validators)
-
-	// update user node status
-	for _, v := range userNodes {
-		v.CheckStatusSilence()
-	}
 
 	monitorMempool(config, mempool)
 }
@@ -223,37 +209,6 @@ func monitorMempool(config *Config, mempool *Mempool) {
 	} else {
 		metrics.GetOrRegisterGauge(mempoolHighLoadPattern).Update(0)
 	}
-}
-
-func loadUserNodeInfo(cosmosRpcUrl *url.URL) []*Validator {
-	var userNodes []*Validator
-
-	f, err := os.Open(ValidatorFile)
-	if err != nil {
-		fmt.Println("Error opening csv:", err)
-		return userNodes
-	}
-	defer f.Close()
-	df := dataframe.ReadCSV(f)
-
-	for i := 0; i < df.Nrow(); i++ {
-		discordId := df.Subset(i).Col("discord_id").Elem(0).String()
-
-		validatorAddress := df.Subset(i).Col("validator_address").Elem(0).String()
-		rpc := df.Subset(i).Col("validator_rpc").Elem(0).String()
-		ips := strings.Split(rpc, ",")
-		for _, ip := range ips {
-			ip = strings.TrimSpace(ip)
-			logrus.WithField("discord_id", discordId).WithField("ip", ip).Debug("Start to monitor user validator node")
-
-			currNode := MustNewValidator(cosmosRpcUrl, validatorAddress, ip)
-			if currNode != nil {
-				userNodes = append(userNodes, currNode)
-			}
-		}
-	}
-
-	return userNodes
 }
 
 func FindMaxBlockHeight(nodes []*Node) uint64 {
