@@ -47,20 +47,20 @@ func Monitor(config Config) {
 		validators = append(validators, MustNewValidator(url, name, address))
 	}
 
-	mempool := MustNewMempool(config.CometbftRPC)
+	consensus := MustNewConsensus(config.CometbftRPC)
 
 	blockTxCntRecord = make(map[uint64]int, config.BlockTxCntLimit)
 	blockFailedTxCntRecord = make(map[uint64]int, config.BlockTxCntLimit)
 
 	// Monitor once immediately
-	monitorOnce(&config, nodes, validators, mempool)
+	monitorOnce(&config, nodes, validators, consensus)
 
 	// Monitor node status periodically
 	ticker := time.NewTicker(config.Interval)
 	defer ticker.Stop()
 
 	for range ticker.C {
-		monitorOnce(&config, nodes, validators, mempool)
+		monitorOnce(&config, nodes, validators, consensus)
 	}
 }
 
@@ -74,7 +74,7 @@ func createMetricsForChain() {
 	metrics.GetOrRegisterHistogram(blockTxCountPattern).Update(0)
 }
 
-func monitorOnce(config *Config, nodes []*Node, validators []*Validator, mempool *Mempool) {
+func monitorOnce(config *Config, nodes []*Node, validators []*Validator, consensus *Consensus) {
 	blockSwitched := false
 	var blockTxInfo *BlockTxInfo
 	for _, v := range nodes {
@@ -114,12 +114,14 @@ func monitorOnce(config *Config, nodes []*Node, validators []*Validator, mempool
 		for _, v := range nodes {
 			v.CheckFork(recordor)
 		}
+
+		monitorBlockValidator(config, consensus, blockTxInfo.Height)
 	}
 
 	// update validator status
 	monitorValidator(config, validators)
 
-	monitorMempool(config, mempool)
+	monitorMempool(config, consensus)
 }
 
 func countFailedTx(statusMap map[string]bool) int {
@@ -208,8 +210,8 @@ func monitorValidator(config *Config, validators []*Validator) {
 	logrus.WithField("active", activeValidatorCount).WithField("jailed", jailedCnt).Debug("Validators status report")
 }
 
-func monitorMempool(config *Config, mempool *Mempool) {
-	unconfirmedTxCnt := mempool.UpdateUncommitTxCnt(config.MempoolReport.TimedCounterConfig)
+func monitorMempool(config *Config, consensus *Consensus) {
+	unconfirmedTxCnt := consensus.UpdateUncommitTxCnt(config.MempoolReport.TimedCounterConfig)
 
 	metrics.GetOrRegisterHistogram(mempoolUncommitTxCntPattern).Update(int64(unconfirmedTxCnt))
 	percentage := float64(unconfirmedTxCnt*100) / float64(config.MempoolReport.PoolSize)
@@ -219,6 +221,12 @@ func monitorMempool(config *Config, mempool *Mempool) {
 	} else {
 		metrics.GetOrRegisterGauge(mempoolHighLoadPattern).Update(0)
 	}
+}
+
+func monitorBlockValidator(config *Config, consensus *Consensus, blockHeight uint64) {
+	blkValidatorCnt := consensus.GetBlockValidatorCnt(config.MempoolReport.TimedCounterConfig, blockHeight)
+	logrus.Debug(fmt.Sprintf("count of validator who signed block %d = %d", blockHeight, blkValidatorCnt))
+	metrics.GetOrRegisterHistogram(blockValidatorCountPattern).Update(int64(blkValidatorCnt))
 }
 
 func FindMaxBlockHeight(nodes []*Node) uint64 {

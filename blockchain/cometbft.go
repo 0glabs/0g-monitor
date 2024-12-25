@@ -39,3 +39,28 @@ func rpcGetUncommitTxCnt(url string) (int, error) {
 
 	return int(cnt), nil
 }
+
+func rpcGetBlockValidatorCnt(url string, height uint64) (int, error) {
+	client := resty.New()
+	var result map[string]interface{}
+	resp, err := client.R().SetResult(&result).Get(fmt.Sprintf("%s/validators?height=%d", url, height))
+	if err != nil {
+		logrus.WithError(err).WithField("url", url).WithField("height", height).Error("failed to get validator list")
+		return -1, err
+	}
+	if resp.StatusCode() != 200 {
+		logrus.WithError(err).WithField("url", url).WithField("height", height).WithField("status_code", resp.StatusCode()).Error("failed to get validator list")
+		return -1, fmt.Errorf("failed to get validator list, status code: %d", resp.StatusCode())
+	}
+
+	if logrus.IsLevelEnabled(logrus.DebugLevel) {
+		jsonStr, _ := json.Marshal(result)
+		logrus.WithFields(logrus.Fields{
+			"response": fmt.Sprintf("%+v", string(jsonStr)),
+		}).Debug("response of cometbft rpc: validators?height=")
+	}
+
+	validators := result["result"].(map[string]interface{})["validators"].([]interface{})
+
+	return len(validators), nil
+}

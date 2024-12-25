@@ -12,6 +12,8 @@ const (
 	// count of tx in block
 	blockTxCountPattern = "monitor/blockchain/block/tx/count"
 
+	blockValidatorCountPattern = "monitor/blockchain/block/validator/count"
+
 	// chain
 	chainForkPattern = "monitor/blockchain/fork/%v"
 	// ethermint rpc
