@@ -202,9 +202,9 @@ func monitorValidator(config *Config, validators []*Validator) {
 	metrics.GetOrRegisterHistogram(validatorActiveCountPattern).Update(int64(activeValidatorCount))
 	percentage := 100 * float64(activeValidatorCount) / float64(len(validators))
 	if percentage-float64(67) >= 0 {
-		metrics.GetOrRegisterGauge(validatorActiveCountUnhealthPattern).Update(1)
-	} else {
 		metrics.GetOrRegisterGauge(validatorActiveCountUnhealthPattern).Update(0)
+	} else {
+		metrics.GetOrRegisterGauge(validatorActiveCountUnhealthPattern).Update(1)
 	}
 
 	logrus.WithField("active", activeValidatorCount).WithField("jailed", jailedCnt).Debug("Validators status report")
