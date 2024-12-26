@@ -215,6 +215,7 @@ func monitorMempool(config *Config, consensus *Consensus) {
 
 	metrics.GetOrRegisterHistogram(mempoolUncommitTxCntPattern).Update(int64(unconfirmedTxCnt))
 	percentage := float64(unconfirmedTxCnt*100) / float64(config.MempoolReport.PoolSize)
+	metrics.GetOrRegisterGauge(mempoolLoadPattern).Update(int64(percentage))
 	logrus.Debug("Mempool status report: unconfirmed tx count = ", unconfirmedTxCnt, ", percentage = ", percentage)
 	if percentage-float64(config.MempoolReport.AlarmThreshold) > 0 {
 		metrics.GetOrRegisterGauge(mempoolHighLoadPattern).Update(1)

@@ -53,6 +53,9 @@ func createMetricsForNode(name string) {
 
 	metrics.GetOrRegisterHistogram(blockCollatedGapPattern, name).Update(0)
 	metrics.GetOrRegisterGauge(blockCollatedGapUnhealthPattern, name).Update(0)
+
+	metrics.GetOrRegisterHistogram(nodeEthRpcLatencyPattern, name).Update(0)
+	metrics.GetOrRegisterGauge(nodeEthRpcUnhealthPattern, name).Update(0)
 }
 
 func (node *Node) UpdateHeight(config AvailabilityReport) {

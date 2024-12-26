@@ -21,7 +21,7 @@ func executeRequest(
 	if len(nodeName) > 0 {
 		metrics.GetOrRegisterHistogram(latencyPattern, nodeName).Update(elapsed)
 	} else {
-		metrics.GetOrRegisterHistogram(latencyPattern).Update(elapsed)
+		metrics.GetOrRegisterHistogram("%s", latencyPattern).Update(elapsed)
 	}
 	if err != nil {
 		unhealthy, unrecovered, elapsed := health.OnFailure(heathCfg)
@@ -29,7 +29,7 @@ func executeRequest(
 			if len(nodeName) > 0 {
 				metrics.GetOrRegisterGauge(unhealtyPattern, nodeName).Update(1)
 			} else {
-				metrics.GetOrRegisterGauge(unhealtyPattern, nodeName).Update(1)
+				metrics.GetOrRegisterGauge("%s", unhealtyPattern).Update(1)
 			}
 		}
 
@@ -42,7 +42,7 @@ func executeRequest(
 			if len(nodeName) > 0 {
 				metrics.GetOrRegisterGauge(unhealtyPattern, nodeName).Update(0)
 			} else {
-				metrics.GetOrRegisterGauge(unhealtyPattern, nodeName).Update(0)
+				metrics.GetOrRegisterGauge("%s", unhealtyPattern).Update(0)
 			}
 		}
 

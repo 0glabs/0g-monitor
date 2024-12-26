@@ -29,6 +29,7 @@ const (
 	// mempool
 	mempoolUncommitTxCntPattern = "monitor/blockchain/mempool/uncommit/cnt"
 	mempoolHighLoadPattern      = "monitor/blockchain/mempool/highload"
+	mempoolLoadPattern          = "monitor/blockchain/mempool/load"
 
 	// validator
 	validatorActiveCountUnhealthPattern = "monitor/blockchain/validator/count/unhealth"

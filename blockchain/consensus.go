@@ -23,6 +23,9 @@ func MustNewConsensus(urlstr string) *Consensus {
 	metrics.GetOrRegisterHistogram(mempoolUncommitTxCntPattern).Update(0)
 	metrics.GetOrRegisterGauge(mempoolHighLoadPattern).Update(0)
 
+	metrics.GetOrRegisterHistogram(nodeCometbftRpcLatencyPattern, "consensus").Update(0)
+	metrics.GetOrRegisterGauge(nodeCometbftRpcUnhealthPattern, "consensus").Update(0)
+
 	return &Consensus{
 		url: url.String(),
 	}
