@@ -80,7 +80,7 @@ func (node *Node) UpdateHeight(config AvailabilityReport) {
 				node.lastBlockGap = info.Timestamp - node.currentBlockInfo.Timestamp
 
 				if latest > 0 { // skip first report
-					metrics.GetOrRegisterHistogram(blockCollatedGapPattern, node.name).Update(int64(node.lastBlockGap))
+					metrics.GetOrRegisterHistogram(blockCollatedGapPattern, node.name).Update(int64(node.lastBlockGap * uint64(time.Second)))
 
 					if node.lastBlockGap > config.MaxGap {
 						unhealthy, unrecovered, elapsed := node.blockGapHealth.OnFailure(config.TimedCounterConfig)
