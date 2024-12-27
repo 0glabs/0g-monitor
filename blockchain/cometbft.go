@@ -60,7 +60,13 @@ func rpcGetBlockValidatorCnt(url string, height uint64) (int, error) {
 		}).Debug("response of cometbft rpc: validators?height=")
 	}
 
-	validators := result["result"].(map[string]interface{})["validators"].([]interface{})
+	totalStr := result["result"].(map[string]interface{})["total"].(string)
 
-	return len(validators), nil
+	total, err := strconv.ParseInt(totalStr, 10, 64)
+	if err != nil {
+		logrus.WithError(err).WithField("total", totalStr).Error("failed to convert total string to int")
+		return 0, err
+	}
+
+	return int(total), nil
 }
