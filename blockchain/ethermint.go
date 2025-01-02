@@ -1,16 +1,31 @@
 package blockchain
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
+	"github.com/go-resty/resty/v2"
 	"github.com/sirupsen/logrus"
 )
 
-func EthGetLatestBlockInfo(url string) (BlockInfo, error) {
+var httpClient *resty.Client
+
+func getHttpClient() *resty.Client {
+	if httpClient == nil {
+		transport := &http.Transport{
+			MaxIdleConns:        30,
+			MaxIdleConnsPerHost: 1,
+			IdleConnTimeout:     30 * time.Second,
+		}
+		httpClient = resty.New().SetTransport(transport).SetHeader("Connection", "keep-alive")
+	}
+	return httpClient
+}
+
+func EthGetLatestBlockInfo(url string) (*BlockInfo, error) {
 	reqBody := map[string]interface{}{
 		"jsonrpc": "2.0",
 		"method":  "eth_getBlockByNumber",
@@ -21,20 +36,20 @@ func EthGetLatestBlockInfo(url string) (BlockInfo, error) {
 	// Encode the request body to JSON
 	reqBytes, err := json.Marshal(reqBody)
 	if err != nil {
-		return BlockInfo{}, err
+		return nil, err
 	}
 
 	// Send the HTTP POST request
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(reqBytes))
-	if err != nil {
-		return BlockInfo{}, err
-	}
-	defer resp.Body.Close()
-
-	// Decode the JSON response
+	client := getHttpClient()
 	var respBody map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&respBody); err != nil {
-		return BlockInfo{}, err
+	resp, err := client.R().SetResult(&respBody).SetHeader("Content-Type", "application/json").SetBody(string(reqBytes)).Post(url)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode() != 200 {
+		logrus.WithError(err).WithField("url", url).WithField("status_code", resp.StatusCode()).Error("get latest block info via ethereum rpc failed")
+		return nil, fmt.Errorf("get latest block info via ethereum rpc failed, status code: %d", resp.StatusCode())
 	}
 
 	if logrus.IsLevelEnabled(logrus.DebugLevel) {
@@ -52,12 +67,12 @@ func EthGetLatestBlockInfo(url string) (BlockInfo, error) {
 
 	resBlockNumber, err := strconv.ParseUint(blockNumber, 0, 64)
 	if err != nil {
-		return BlockInfo{}, err
+		return nil, err
 	}
 
 	resTimestamp, err := strconv.ParseUint(timestamp, 0, 64)
 	if err != nil {
-		return BlockInfo{}, err
+		return nil, err
 	}
 
 	txs := respBody["result"].(map[string]interface{})["transactions"].([]interface{})
@@ -66,7 +81,7 @@ func EthGetLatestBlockInfo(url string) (BlockInfo, error) {
 		hashList = append(hashList, tx.(string))
 	}
 
-	return BlockInfo{
+	return &BlockInfo{
 		Height:    resBlockNumber,
 		Timestamp: resTimestamp,
 		Hash:      hsah,
@@ -89,16 +104,16 @@ func EthFetchTxReceiptStatus(url string, txHash string) (uint64, error) {
 	}
 
 	// Send the HTTP POST request
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(reqBytes))
+	client := getHttpClient()
+	var respBody map[string]interface{}
+	resp, err := client.R().SetResult(&respBody).SetHeader("Content-Type", "application/json").SetBody(string(reqBytes)).Post(url)
 	if err != nil {
 		return 0, err
 	}
-	defer resp.Body.Close()
 
-	// Decode the JSON response
-	var respBody map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&respBody); err != nil {
-		return 0, err
+	if resp.StatusCode() != 200 {
+		logrus.WithError(err).WithField("url", url).WithField("status_code", resp.StatusCode()).Error("fetch tx receipt status via ethereum rpc failed")
+		return 0, fmt.Errorf("fetch tx receipt status via ethereum rpc failed, status code: %d", resp.StatusCode())
 	}
 
 	// Get the block height from the response
@@ -127,16 +142,16 @@ func EthFetchBlockReceiptStatus(url string, height uint64) (map[string]bool, err
 	}
 
 	// Send the HTTP POST request
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(reqBytes))
+	client := getHttpClient()
+	var respBody map[string]interface{}
+	resp, err := client.R().SetResult(&respBody).SetHeader("Content-Type", "application/json").SetBody(string(reqBytes)).Post(url)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
-	// Decode the JSON response
-	var respBody map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&respBody); err != nil {
-		return nil, err
+	if resp.StatusCode() != 200 {
+		logrus.WithError(err).WithField("url", url).WithField("status_code", resp.StatusCode()).Error("fetch block receipt status via ethereum rpc failed")
+		return nil, fmt.Errorf("fetch block receipt status via ethereum rpc failed, status code: %d", resp.StatusCode())
 	}
 
 	if logrus.IsLevelEnabled(logrus.DebugLevel) {

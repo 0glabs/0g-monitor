@@ -3,14 +3,31 @@ package blockchain
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/go-resty/resty/v2"
 	"github.com/sirupsen/logrus"
 )
 
+var restClient *resty.Client
+
+func createClient() *resty.Client {
+	if restClient == nil {
+		transport := &http.Transport{
+			MaxIdleConns:        1,
+			MaxIdleConnsPerHost: 1,
+			IdleConnTimeout:     30 * time.Second,
+		}
+		restClient = resty.New().SetTransport(transport).SetHeader("Connection", "keep-alive")
+	}
+
+	return restClient
+}
+
 func rpcGetUncommitTxCnt(url string) (int, error) {
-	client := resty.New()
+	client := createClient()
 	var result map[string]interface{}
 	resp, err := client.R().SetResult(&result).Get(url + "/num_unconfirmed_txs")
 	if err != nil {
@@ -41,7 +58,7 @@ func rpcGetUncommitTxCnt(url string) (int, error) {
 }
 
 func rpcGetBlockValidatorCnt(url string, height uint64) (int, error) {
-	client := resty.New()
+	client := createClient()
 	var result map[string]interface{}
 	resp, err := client.R().SetResult(&result).Get(fmt.Sprintf("%s/validators?height=%d", url, height))
 	if err != nil {

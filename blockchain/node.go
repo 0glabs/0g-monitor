@@ -59,7 +59,7 @@ func createMetricsForNode(name string) {
 }
 
 func (node *Node) UpdateHeight(config AvailabilityReport) {
-	var info BlockInfo
+	var info *BlockInfo
 	executeRequest(
 		func() error {
 			var err error
