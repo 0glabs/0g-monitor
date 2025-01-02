@@ -20,7 +20,7 @@ type Consensus struct {
 func MustNewConsensus(urlstr string) *Consensus {
 	url, _ := url.Parse(urlstr)
 
-	metrics.GetOrRegisterHistogram(mempoolUncommitTxCntPattern).Update(0)
+	metrics.GetOrRegisterGauge(mempoolUncommitTxCntPattern).Update(0)
 	metrics.GetOrRegisterGauge(mempoolHighLoadPattern).Update(0)
 
 	metrics.GetOrRegisterHistogram(nodeCometbftRpcLatencyPattern, "consensus").Update(0)

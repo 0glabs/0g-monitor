@@ -46,12 +46,12 @@ func MustNewNode(name, urlstr string) *Node {
 }
 
 func createMetricsForNode(name string) {
-	metrics.GetOrRegisterHistogram(blockHeightBehindPattern, name).Update(0)
+	metrics.GetOrRegisterGauge(blockHeightBehindPattern, name).Update(0)
 	metrics.GetOrRegisterGauge(blockHeightUnhealthPattern, name).Update(0)
 
 	metrics.GetOrRegisterGauge(chainForkPattern, name).Update(0)
 
-	metrics.GetOrRegisterHistogram(blockCollatedGapPattern, name).Update(0)
+	metrics.GetOrRegisterGauge(blockCollatedGapPattern, name).Update(0)
 	metrics.GetOrRegisterGauge(blockCollatedGapUnhealthPattern, name).Update(0)
 
 	metrics.GetOrRegisterHistogram(nodeEthRpcLatencyPattern, name).Update(0)
@@ -83,7 +83,17 @@ func (node *Node) UpdateHeight(config AvailabilityReport) {
 				node.lastBlockGap = info.Timestamp - node.currentBlockInfo.Timestamp
 
 				if latest > 0 { // skip first report
-					metrics.GetOrRegisterHistogram(blockCollatedGapPattern, node.name).Update(int64(node.lastBlockGap * uint64(time.Second)))
+					if logrus.IsLevelEnabled(logrus.DebugLevel) {
+						logrus.WithFields(logrus.Fields{
+							"node":    node.name,
+							"current": info.Height,
+							"before":  node.currentBlockInfo.Timestamp,
+							"this":    info.Timestamp,
+							"gap":     node.lastBlockGap,
+						}).Debug("Node block collated gap")
+					}
+
+					metrics.GetOrRegisterGauge(blockCollatedGapPattern, node.name).Update(int64(node.lastBlockGap * uint64(time.Second)))
 
 					if node.lastBlockGap > config.MaxGap {
 						unhealthy, unrecovered, elapsed := node.blockGapHealth.OnFailure(config.TimedCounterConfig)
@@ -177,7 +187,7 @@ func (node *Node) CheckHeight(config *HeightReportConfig, target uint64) {
 		behind = target - node.currentBlockInfo.Height
 	}
 
-	metrics.GetOrRegisterHistogram(blockHeightBehindPattern, node.name).Update(int64(behind))
+	metrics.GetOrRegisterGauge(blockHeightBehindPattern, node.name).Update(int64(behind))
 	if behind <= config.MaxGap {
 		metrics.GetOrRegisterGauge(blockHeightUnhealthPattern, node.name).Update(0)
 

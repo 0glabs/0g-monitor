@@ -65,13 +65,13 @@ func Monitor(config Config) {
 }
 
 func createMetricsForChain() {
-	metrics.GetOrRegisterHistogram(validatorActiveCountPattern).Update(0)
+	metrics.GetOrRegisterGauge(validatorActiveCountPattern).Update(0)
 	metrics.GetOrRegisterGauge(validatorActiveCountUnhealthPattern).Update(0)
 
 	metrics.GetOrRegisterGauge(failedTxCountUnhealthPattern).Update(0)
-	metrics.GetOrRegisterHistogram(failedTxCountPattern).Update(0)
+	metrics.GetOrRegisterGauge(failedTxCountPattern).Update(0)
 
-	metrics.GetOrRegisterHistogram(blockTxCountPattern).Update(0)
+	metrics.GetOrRegisterGauge(blockTxCountPattern).Update(0)
 }
 
 func monitorOnce(config *Config, nodes []*Node, validators []*Validator, consensus *Consensus) {
@@ -137,7 +137,7 @@ func countFailedTx(statusMap map[string]bool) int {
 func monitorTxFailures(config *Config, nodes []*Node, txInfo *BlockTxInfo) {
 	if txInfo != nil {
 		blockTxCnt := len(txInfo.TxHashes)
-		metrics.GetOrRegisterHistogram(blockTxCountPattern).Update(int64(blockTxCnt))
+		metrics.GetOrRegisterGauge(blockTxCountPattern).Update(int64(blockTxCnt))
 
 		logrus.Debug(fmt.Sprintf("Block (%d) tx count: %d", txInfo.Height, blockTxCnt))
 
@@ -165,7 +165,7 @@ func monitorTxFailures(config *Config, nodes []*Node, txInfo *BlockTxInfo) {
 			}
 		}
 
-		metrics.GetOrRegisterHistogram(failedTxCountPattern).Update(int64(failedTxCnt))
+		metrics.GetOrRegisterGauge(failedTxCountPattern).Update(int64(failedTxCnt))
 		percentage := float64(failedTxCnt*100) / float64(totalTxCnt)
 		if failedTxCnt > 0 && percentage-float64(config.FailedTxCntAlarmThreshold) > 0 {
 			metrics.GetOrRegisterGauge(failedTxCountUnhealthPattern).Update(1)
@@ -185,7 +185,7 @@ func monitorTxFailures(config *Config, nodes []*Node, txInfo *BlockTxInfo) {
 			}
 		}
 	} else {
-		metrics.GetOrRegisterHistogram(blockTxCountPattern).Update(0)
+		metrics.GetOrRegisterGauge(blockTxCountPattern).Update(0)
 	}
 }
 
@@ -199,7 +199,7 @@ func monitorValidator(config *Config, validators []*Validator) {
 	}
 
 	activeValidatorCount := len(validators) - jailedCnt
-	metrics.GetOrRegisterHistogram(validatorActiveCountPattern).Update(int64(activeValidatorCount))
+	metrics.GetOrRegisterGauge(validatorActiveCountPattern).Update(int64(activeValidatorCount))
 	percentage := 100 * float64(activeValidatorCount) / float64(len(validators))
 	if percentage-float64(67) >= 0 {
 		metrics.GetOrRegisterGauge(validatorActiveCountUnhealthPattern).Update(0)
@@ -213,7 +213,7 @@ func monitorValidator(config *Config, validators []*Validator) {
 func monitorMempool(config *Config, consensus *Consensus) {
 	unconfirmedTxCnt := consensus.UpdateUncommitTxCnt(config.MempoolReport.TimedCounterConfig)
 
-	metrics.GetOrRegisterHistogram(mempoolUncommitTxCntPattern).Update(int64(unconfirmedTxCnt))
+	metrics.GetOrRegisterGauge(mempoolUncommitTxCntPattern).Update(int64(unconfirmedTxCnt))
 	percentage := float64(unconfirmedTxCnt*100) / float64(config.MempoolReport.PoolSize)
 	metrics.GetOrRegisterGauge(mempoolLoadPattern).Update(int64(percentage))
 	logrus.Debug("Mempool status report: unconfirmed tx count = ", unconfirmedTxCnt, ", percentage = ", percentage)
@@ -227,7 +227,7 @@ func monitorMempool(config *Config, consensus *Consensus) {
 func monitorBlockValidator(config *Config, consensus *Consensus, blockHeight uint64) {
 	blkValidatorCnt := consensus.GetBlockValidatorCnt(config.MempoolReport.TimedCounterConfig, blockHeight)
 	logrus.Debug(fmt.Sprintf("count of validator who signed block %d = %d", blockHeight, blkValidatorCnt))
-	metrics.GetOrRegisterHistogram(blockValidatorCountPattern).Update(int64(blkValidatorCnt))
+	metrics.GetOrRegisterGauge(blockValidatorCountPattern).Update(int64(blkValidatorCnt))
 }
 
 func FindMaxBlockHeight(nodes []*Node) uint64 {
