@@ -86,9 +86,8 @@ func (node *Node) UpdateHeight(config AvailabilityReport) {
 					if logrus.IsLevelEnabled(logrus.DebugLevel) {
 						logrus.WithFields(logrus.Fields{
 							"node":    node.name,
+							"last":    node.currentBlockInfo.Height,
 							"current": info.Height,
-							"before":  node.currentBlockInfo.Timestamp,
-							"this":    info.Timestamp,
 							"gap":     node.lastBlockGap,
 						}).Debug("Node block collated gap")
 					}

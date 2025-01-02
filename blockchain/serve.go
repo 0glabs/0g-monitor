@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/0glabs/0g-monitor/utils"
@@ -12,13 +13,10 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const ValidatorFile = "data/validator_rpcs.csv"
-
 var (
 	blockTxCntRecord       map[uint64]int
 	blockFailedTxCntRecord map[uint64]int
 	blockFailedTxCntLock   sync.RWMutex
-	monitorInRunning       sync.Mutex
 )
 
 func MustMonitorFromViper() {
@@ -55,14 +53,34 @@ func Monitor(config Config) {
 	blockFailedTxCntRecord = make(map[uint64]int, config.BlockTxCntLimit)
 
 	// Monitor once immediately
-	monitorOnce(&config, nodes, validators, consensus)
+	monitorAllOnce(&config, nodes, validators, consensus)
 
 	// Monitor node status periodically
-	ticker := time.NewTicker(config.Interval)
+	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 
+	monitorValidatorCnt := 0
+	monitorNodeCnt := 0
+	monitorMempoolCnt := 0
 	for range ticker.C {
-		monitorOnce(&config, nodes, validators, consensus)
+		monitorValidatorCnt++
+		monitorNodeCnt++
+		monitorMempoolCnt++
+
+		if monitorNodeCnt%config.NodeInterval == 0 {
+			monitorNodeOnce(&config, nodes, consensus)
+			monitorNodeCnt = 0
+		}
+
+		if monitorValidatorCnt%config.ValidatorInterval == 0 {
+			monitorValidatorOnce(&config, validators)
+			monitorValidatorCnt = 0
+		}
+
+		if monitorMempoolCnt%config.MempoolInterval == 0 {
+			monitorMempoolOnce(&config, consensus)
+			monitorMempoolCnt = 0
+		}
 	}
 }
 
@@ -76,47 +94,51 @@ func createMetricsForChain() {
 	metrics.GetOrRegisterGauge(blockTxCountPattern).Update(0)
 }
 
-func monitorOnce(config *Config, nodes []*Node, validators []*Validator, consensus *Consensus) {
-	if monitorInRunning.TryLock() {
-		defer monitorInRunning.Unlock()
+func monitorAllOnce(config *Config, nodes []*Node, validators []*Validator, consensus *Consensus) {
+	start := time.Now()
+	defer func() {
+		elapsed := time.Since(start)
+		if logrus.IsLevelEnabled(logrus.DebugLevel) {
+			logrus.WithFields(logrus.Fields{
+				"costed": utils.PrettyElapsed(elapsed),
+			}).Debug("executed monitorAllOnce:")
+		}
+	}()
 
-		start := time.Now()
-		defer func() {
-			elapsed := time.Since(start)
-			if logrus.IsLevelEnabled(logrus.DebugLevel) {
-				logrus.WithFields(logrus.Fields{
-					"costed": utils.PrettyElapsed(elapsed),
-				}).Debug("executed monitorOnce:")
-			}
-		}()
+	var allTasks sync.WaitGroup
 
-		allTasks := utils.NewSizedWaitGroup(3)
+	allTasks.Add(1)
+	go utils.SafeStartGoroutine(func() {
+		defer allTasks.Done()
+		monitorNodeOnce(config, nodes, consensus)
+	})
 
-		allTasks.Add()
-		go utils.SafeStartGoroutine(func() {
-			defer allTasks.Done()
-			monitorNodes(config, nodes, consensus)
-		})
+	allTasks.Add(1)
+	go utils.SafeStartGoroutine(func() {
+		defer allTasks.Done()
+		monitorValidatorOnce(config, validators)
+	})
 
-		allTasks.Add()
-		go utils.SafeStartGoroutine(func() {
-			defer allTasks.Done()
-			monitorValidator(config, validators)
-		})
+	allTasks.Add(1)
+	go utils.SafeStartGoroutine(func() {
+		defer allTasks.Done()
+		monitorMempoolOnce(config, consensus)
+	})
 
-		allTasks.Add()
-		go utils.SafeStartGoroutine(func() {
-			defer allTasks.Done()
-			monitorMempool(config, consensus)
-		})
-
-		allTasks.Wait()
-	} else {
-		logrus.Warn("monitorOnce is running, skip this time")
-	}
+	allTasks.Wait()
 }
 
-func monitorNodes(config *Config, nodes []*Node, consensus *Consensus) {
+func monitorNodeOnce(config *Config, nodes []*Node, consensus *Consensus) {
+	start := time.Now()
+	defer func() {
+		elapsed := time.Since(start)
+		if logrus.IsLevelEnabled(logrus.DebugLevel) {
+			logrus.WithFields(logrus.Fields{
+				"costed": utils.PrettyElapsed(elapsed),
+			}).Debug("executed monitorNodeOnce:")
+		}
+	}()
+
 	blockSwitched := false
 	var blockTxInfo *BlockTxInfo
 
@@ -246,16 +268,36 @@ func monitorTxFailures(config *Config, nodes []*Node, txInfo *BlockTxInfo) {
 	}
 }
 
-func monitorValidator(config *Config, validators []*Validator) {
-	jailedCnt := 0
-	for _, v := range validators {
-		v.Update(config.ValidatorReport)
-		if v.jailed {
-			jailedCnt++
+func monitorValidatorOnce(config *Config, validators []*Validator) {
+	start := time.Now()
+	defer func() {
+		elapsed := time.Since(start)
+		if logrus.IsLevelEnabled(logrus.DebugLevel) {
+			logrus.WithFields(logrus.Fields{
+				"costed": utils.PrettyElapsed(elapsed),
+			}).Debug("executed monitorValidatorOnce:")
 		}
+	}()
+
+	jailedCnt := int32(0)
+
+	if len(validators) > 0 {
+		swg := utils.NewSizedWaitGroup(len(validators))
+
+		for i := range validators {
+			swg.Add()
+			go func(v *Validator) {
+				defer swg.Done()
+				v.Update(config.ValidatorReport)
+				if v.jailed {
+					atomic.AddInt32(&jailedCnt, 1)
+				}
+			}(validators[i])
+		}
+		swg.Wait()
 	}
 
-	activeValidatorCount := len(validators) - jailedCnt
+	activeValidatorCount := len(validators) - int(jailedCnt)
 	metrics.GetOrRegisterGauge(validatorActiveCountPattern).Update(int64(activeValidatorCount))
 	percentage := 100 * float64(activeValidatorCount) / float64(len(validators))
 	if percentage-float64(67) >= 0 {
@@ -267,7 +309,17 @@ func monitorValidator(config *Config, validators []*Validator) {
 	logrus.WithField("active", activeValidatorCount).WithField("jailed", jailedCnt).Debug("Validators status report")
 }
 
-func monitorMempool(config *Config, consensus *Consensus) {
+func monitorMempoolOnce(config *Config, consensus *Consensus) {
+	start := time.Now()
+	defer func() {
+		elapsed := time.Since(start)
+		if logrus.IsLevelEnabled(logrus.DebugLevel) {
+			logrus.WithFields(logrus.Fields{
+				"costed": utils.PrettyElapsed(elapsed),
+			}).Debug("executed monitorMempoolOnce:")
+		}
+	}()
+
 	unconfirmedTxCnt := consensus.UpdateUncommitTxCnt(config.MempoolReport.TimedCounterConfig)
 
 	metrics.GetOrRegisterGauge(mempoolUncommitTxCntPattern).Update(int64(unconfirmedTxCnt))

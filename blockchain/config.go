@@ -1,8 +1,6 @@
 package blockchain
 
 import (
-	"time"
-
 	"github.com/Conflux-Chain/go-conflux-util/health"
 )
 
@@ -21,7 +19,9 @@ type MempoolMonitorReport struct {
 
 type Config struct {
 	Nodes                     map[string]string
-	Interval                  time.Duration `default:"60s"`
+	MempoolInterval           int `default:"1"`
+	NodeInterval              int `default:"3"`
+	ValidatorInterval         int `default:"15"`
 	AvailabilityReport        AvailabilityReport
 	NodeHeightReport          HeightReportConfig
 	BlockchainHeightReport    health.TimedCounterConfig
