@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+
+	"github.com/sirupsen/logrus"
 )
 
 func EthGetLatestBlockInfo(url string) (BlockInfo, error) {
@@ -33,6 +35,14 @@ func EthGetLatestBlockInfo(url string) (BlockInfo, error) {
 	var respBody map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&respBody); err != nil {
 		return BlockInfo{}, err
+	}
+
+	if logrus.IsLevelEnabled(logrus.DebugLevel) {
+		jsonStr, _ := json.Marshal(respBody)
+		logrus.WithFields(logrus.Fields{
+			"url":      url,
+			"response": fmt.Sprintf("%+v", string(jsonStr)),
+		}).Debug("response of ethereum rpc eth_getBlockByNumber: ")
 	}
 
 	// Get the block height from the response
@@ -129,7 +139,19 @@ func EthFetchBlockReceiptStatus(url string, height uint64) (map[string]bool, err
 		return nil, err
 	}
 
-	result := respBody["result"].([]interface{})
+	if logrus.IsLevelEnabled(logrus.DebugLevel) {
+		jsonStr, _ := json.Marshal(respBody)
+		logrus.WithFields(logrus.Fields{
+			"url":      url,
+			"response": fmt.Sprintf("%+v", string(jsonStr)),
+		}).Debug("response of ethereum rpc eth_getBlockReceipts: ")
+	}
+
+	result, ok := respBody["result"].([]interface{})
+	if !ok {
+		println(fmt.Sprintf("%v", respBody))
+		panic("invalid response of ethereum rpc eth_getBlockReceipts")
+	}
 
 	statusMap := make(map[string]bool, len(result))
 
