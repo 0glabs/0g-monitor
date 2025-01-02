@@ -11,23 +11,30 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var restClient *resty.Client
+var clients map[string]*resty.Client
 
-func createClient() *resty.Client {
-	if restClient == nil {
+func createClient(key string) *resty.Client {
+	if clients == nil {
+		clients = make(map[string]*resty.Client)
+	}
+
+	if c, exists := clients[key]; exists {
+		return c
+	} else {
 		transport := &http.Transport{
 			MaxIdleConns:        1,
 			MaxIdleConnsPerHost: 1,
 			IdleConnTimeout:     30 * time.Second,
 		}
-		restClient = resty.New().SetTransport(transport).SetHeader("Connection", "keep-alive")
-	}
+		restClient := resty.New().SetTransport(transport).SetHeader("Connection", "keep-alive")
 
-	return restClient
+		clients[key] = restClient
+		return restClient
+	}
 }
 
 func rpcGetUncommitTxCnt(url string) (int, error) {
-	client := createClient()
+	client := createClient("num_unconfirmed_txs")
 	var result map[string]interface{}
 	resp, err := client.R().SetResult(&result).Get(url + "/num_unconfirmed_txs")
 	if err != nil {
@@ -58,7 +65,7 @@ func rpcGetUncommitTxCnt(url string) (int, error) {
 }
 
 func rpcGetBlockValidatorCnt(url string, height uint64) (int, error) {
-	client := createClient()
+	client := createClient("validators")
 	var result map[string]interface{}
 	resp, err := client.R().SetResult(&result).Get(fmt.Sprintf("%s/validators?height=%d", url, height))
 	if err != nil {

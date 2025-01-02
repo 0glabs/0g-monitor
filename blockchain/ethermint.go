@@ -5,24 +5,42 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/go-resty/resty/v2"
 	"github.com/sirupsen/logrus"
 )
 
-var httpClient *resty.Client
+var ethClients map[string]*resty.Client
+var ethClientLock sync.RWMutex
 
-func getHttpClient() *resty.Client {
-	if httpClient == nil {
+func getHttpClient(url string) *resty.Client {
+	ethClientLock.RLock()
+
+	if ethClients == nil {
+		ethClients = make(map[string]*resty.Client)
+	}
+
+	if c, exists := ethClients[url]; exists {
+		defer ethClientLock.RUnlock()
+		return c
+	} else {
+		ethClientLock.RUnlock()
+		println(url, "lock")
+		ethClientLock.Lock()
+		defer ethClientLock.Unlock()
 		transport := &http.Transport{
-			MaxIdleConns:        30,
+			MaxIdleConns:        1,
 			MaxIdleConnsPerHost: 1,
 			IdleConnTimeout:     30 * time.Second,
 		}
-		httpClient = resty.New().SetTransport(transport).SetHeader("Connection", "keep-alive")
+		httpClient := resty.New().SetTransport(transport).SetHeader("Connection", "keep-alive")
+
+		ethClients[url] = httpClient
+
+		return httpClient
 	}
-	return httpClient
 }
 
 func EthGetLatestBlockInfo(url string) (*BlockInfo, error) {
@@ -40,7 +58,7 @@ func EthGetLatestBlockInfo(url string) (*BlockInfo, error) {
 	}
 
 	// Send the HTTP POST request
-	client := getHttpClient()
+	client := getHttpClient(url)
 	var respBody map[string]interface{}
 	resp, err := client.R().SetResult(&respBody).SetHeader("Content-Type", "application/json").SetBody(string(reqBytes)).Post(url)
 	if err != nil {
@@ -104,7 +122,7 @@ func EthFetchTxReceiptStatus(url string, txHash string) (uint64, error) {
 	}
 
 	// Send the HTTP POST request
-	client := getHttpClient()
+	client := getHttpClient(url)
 	var respBody map[string]interface{}
 	resp, err := client.R().SetResult(&respBody).SetHeader("Content-Type", "application/json").SetBody(string(reqBytes)).Post(url)
 	if err != nil {
@@ -142,7 +160,7 @@ func EthFetchBlockReceiptStatus(url string, height uint64) (map[string]bool, err
 	}
 
 	// Send the HTTP POST request
-	client := getHttpClient()
+	client := getHttpClient(url)
 	var respBody map[string]interface{}
 	resp, err := client.R().SetResult(&respBody).SetHeader("Content-Type", "application/json").SetBody(string(reqBytes)).Post(url)
 	if err != nil {

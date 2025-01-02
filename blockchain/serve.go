@@ -152,8 +152,8 @@ func monitorNodeOnce(config *Config, nodes []*Node, consensus *Consensus) {
 				v.UpdateHeight(config.AvailabilityReport)
 				// generate block tx info for new block
 				blockFailedTxCntLock.RLock()
-				defer blockFailedTxCntLock.RUnlock()
 				if _, existed := blockTxCntRecord[v.currentBlockInfo.Height]; !existed {
+					blockFailedTxCntLock.RUnlock()
 					if blockFailedTxCntLock.TryLock() {
 						defer blockFailedTxCntLock.Unlock()
 						blockTxCntRecord[v.currentBlockInfo.Height] = len(v.currentBlockInfo.TxHashes)
@@ -166,6 +166,8 @@ func monitorNodeOnce(config *Config, nodes []*Node, consensus *Consensus) {
 							blockSwitched = true
 						}
 					}
+				} else {
+					blockFailedTxCntLock.RUnlock()
 				}
 			}(nodes[i])
 		}
