@@ -14,7 +14,7 @@ func StartAction(action func(), wg *sync.WaitGroup) {
 	}()
 }
 
-func safeStartGoroutine(do func()) {
+func SafeStartGoroutine(do func()) {
 	defer func() {
 		if r := recover(); r != nil {
 			println("Caught panic in goroutine: ", r)
@@ -36,7 +36,7 @@ func StartDeamon(do func()) {
 			defer func() {
 				wg.Done()
 			}()
-			safeStartGoroutine(do)
+			SafeStartGoroutine(do)
 		}()
 		wg.Add(1)
 		wg.Wait()

@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/0glabs/0g-monitor/utils"
 	"github.com/Conflux-Chain/go-conflux-util/metrics"
 	"github.com/Conflux-Chain/go-conflux-util/viper"
 	"github.com/sirupsen/logrus"
@@ -17,6 +18,7 @@ var (
 	blockTxCntRecord       map[uint64]int
 	blockFailedTxCntRecord map[uint64]int
 	blockFailedTxCntLock   sync.RWMutex
+	monitorInRunning       sync.Mutex
 )
 
 func MustMonitorFromViper() {
@@ -75,22 +77,77 @@ func createMetricsForChain() {
 }
 
 func monitorOnce(config *Config, nodes []*Node, validators []*Validator, consensus *Consensus) {
+	if monitorInRunning.TryLock() {
+		defer monitorInRunning.Unlock()
+
+		start := time.Now()
+		defer func() {
+			elapsed := time.Since(start)
+			if logrus.IsLevelEnabled(logrus.DebugLevel) {
+				logrus.WithFields(logrus.Fields{
+					"costed": utils.PrettyElapsed(elapsed),
+				}).Debug("executed monitorOnce:")
+			}
+		}()
+
+		allTasks := utils.NewSizedWaitGroup(3)
+
+		allTasks.Add()
+		go utils.SafeStartGoroutine(func() {
+			defer allTasks.Done()
+			monitorNodes(config, nodes, consensus)
+		})
+
+		allTasks.Add()
+		go utils.SafeStartGoroutine(func() {
+			defer allTasks.Done()
+			monitorValidator(config, validators)
+		})
+
+		allTasks.Add()
+		go utils.SafeStartGoroutine(func() {
+			defer allTasks.Done()
+			monitorMempool(config, consensus)
+		})
+
+		allTasks.Wait()
+	} else {
+		logrus.Warn("monitorOnce is running, skip this time")
+	}
+}
+
+func monitorNodes(config *Config, nodes []*Node, consensus *Consensus) {
 	blockSwitched := false
 	var blockTxInfo *BlockTxInfo
-	for _, v := range nodes {
-		v.UpdateHeight(config.AvailabilityReport)
-		// generate block tx info for new block
-		if _, existed := blockTxCntRecord[v.currentBlockInfo.Height]; !existed {
-			blockTxCntRecord[v.currentBlockInfo.Height] = len(v.currentBlockInfo.TxHashes)
-			blockTxInfo = &BlockTxInfo{
-				Height:   v.currentBlockInfo.Height,
-				TxHashes: v.currentBlockInfo.TxHashes,
-			}
 
-			if !blockSwitched {
-				blockSwitched = true
-			}
+	if len(nodes) > 0 {
+		swg := utils.NewSizedWaitGroup(len(nodes))
+
+		for i := range nodes {
+			swg.Add()
+			go func(v *Node) {
+				defer swg.Done()
+				v.UpdateHeight(config.AvailabilityReport)
+				// generate block tx info for new block
+				blockFailedTxCntLock.RLock()
+				defer blockFailedTxCntLock.RUnlock()
+				if _, existed := blockTxCntRecord[v.currentBlockInfo.Height]; !existed {
+					if blockFailedTxCntLock.TryLock() {
+						defer blockFailedTxCntLock.Unlock()
+						blockTxCntRecord[v.currentBlockInfo.Height] = len(v.currentBlockInfo.TxHashes)
+						blockTxInfo = &BlockTxInfo{
+							Height:   v.currentBlockInfo.Height,
+							TxHashes: v.currentBlockInfo.TxHashes,
+						}
+
+						if !blockSwitched {
+							blockSwitched = true
+						}
+					}
+				}
+			}(nodes[i])
 		}
+		swg.Wait()
 	}
 
 	max := FindMaxBlockHeight(nodes)
@@ -117,11 +174,6 @@ func monitorOnce(config *Config, nodes []*Node, validators []*Validator, consens
 
 		monitorBlockValidator(config, consensus, blockTxInfo.Height)
 	}
-
-	// update validator status
-	monitorValidator(config, validators)
-
-	monitorMempool(config, consensus)
 }
 
 func countFailedTx(statusMap map[string]bool) int {
@@ -157,6 +209,8 @@ func monitorTxFailures(config *Config, nodes []*Node, txInfo *BlockTxInfo) {
 				break
 			}
 			targetHeight := txInfo.Height - uint64(i)
+			blockFailedTxCntLock.RLock()
+			defer blockFailedTxCntLock.RUnlock()
 			if cnt, existed := blockTxCntRecord[targetHeight]; existed {
 				totalTxCnt += cnt
 				failedTxCnt += blockFailedTxCntRecord[targetHeight]
@@ -176,6 +230,9 @@ func monitorTxFailures(config *Config, nodes []*Node, txInfo *BlockTxInfo) {
 		if len(blockTxCntRecord) > config.BlockTxCntLimit {
 			if uint64(config.BlockTxCntLimit) <= nodes[0].currentBlockInfo.Height {
 				startHeight := nodes[0].currentBlockInfo.Height - uint64(config.BlockTxCntLimit)
+
+				blockFailedTxCntLock.Lock()
+				defer blockFailedTxCntLock.Unlock()
 				for k := range blockTxCntRecord {
 					if k < startHeight {
 						delete(blockTxCntRecord, k)
