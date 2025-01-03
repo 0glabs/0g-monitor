@@ -80,19 +80,21 @@ func (node *Node) UpdateHeight(config AvailabilityReport) {
 
 			if node.currentBlockInfo.Height != info.Height {
 				latest := node.lastBlockGap
-				node.lastBlockGap = info.Timestamp - node.currentBlockInfo.Timestamp
+				deltaBlockHeight := info.Height - node.currentBlockInfo.Height
+				deltaTime := info.Timestamp - node.currentBlockInfo.Timestamp
+				node.lastBlockGap = deltaTime / deltaBlockHeight
 
 				if latest > 0 { // skip first report
-					if logrus.IsLevelEnabled(logrus.DebugLevel) {
+					if deltaBlockHeight > 1 {
 						logrus.WithFields(logrus.Fields{
 							"node":    node.name,
 							"last":    node.currentBlockInfo.Height,
 							"current": info.Height,
 							"gap":     node.lastBlockGap,
-						}).Debug("Node block collated gap")
+						}).Warn("Node block collated gap with more than 1 block")
 					}
 
-					metrics.GetOrRegisterGauge(blockCollatedGapPattern, node.name).Update(int64(node.lastBlockGap * uint64(time.Second)))
+					metrics.GetOrRegisterGauge(blockCollatedGapPattern, node.name).Update(int64(node.lastBlockGap))
 
 					if node.lastBlockGap > config.MaxGap {
 						unhealthy, unrecovered, elapsed := node.blockGapHealth.OnFailure(config.TimedCounterConfig)
