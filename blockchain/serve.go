@@ -218,7 +218,7 @@ func monitorTxFailures(config *Config, nodes []*Node, txInfo *BlockTxInfo) {
 		logrus.Debug(fmt.Sprintf("Block (%d) tx count: %d", txInfo.Height, blockTxCnt))
 
 		if blockTxCnt > 0 {
-			index := int(time.Now().UnixNano() % int64(len(nodes)))
+			index := int(time.Now().Unix() % int64(len(nodes)))
 			statusMap, err := nodes[index].FetchBlockReceiptStatus(config.NodeHeightReport.TimedCounterConfig, txInfo.Height)
 			if err != nil {
 				return
