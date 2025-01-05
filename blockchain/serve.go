@@ -218,14 +218,22 @@ func monitorTxFailures(config *Config, nodes []*Node, txInfo *BlockTxInfo) {
 		logrus.Debug(fmt.Sprintf("Block (%d) tx count: %d", txInfo.Height, blockTxCnt))
 
 		if blockTxCnt > 0 {
-			index := int(time.Now().Unix() % int64(len(nodes)))
-			statusMap, err := nodes[index].FetchBlockReceiptStatus(config.NodeHeightReport.TimedCounterConfig, txInfo.Height)
-			if err != nil {
-				logrus.WithError(err).Error("Failed to fetch block receipt status")
-				return
+			rec := make(map[int]bool, len(nodes))
+			index := int(time.Now().UnixMilli() % int64(len(nodes)))
+			for len(rec) < len(nodes) {
+				if _, exists := rec[index]; !exists {
+					rec[index] = true
+					statusMap, err := nodes[index].FetchBlockReceiptStatus(config.NodeHeightReport.TimedCounterConfig, txInfo.Height)
+					if err != nil {
+						logrus.WithError(err).WithField("height", txInfo.Height).WithField("index", index).Info("Failed to fetch block receipt status")
+					} else {
+						blockFailedTxCntRecord[txInfo.Height] = countFailedTx(statusMap)
+						break
+					}
+				} else {
+					index = (index + 1) % len(nodes)
+				}
 			}
-
-			blockFailedTxCntRecord[txInfo.Height] = countFailedTx(statusMap)
 		}
 
 		totalTxCnt, failedTxCnt := 0, 0
