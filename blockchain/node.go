@@ -91,7 +91,7 @@ func (node *Node) UpdateHeight(config AvailabilityReport) {
 							"last":    node.currentBlockInfo.Height,
 							"current": info.Height,
 							"gap":     node.lastBlockGap,
-						}).Warn("Node block collated gap with more than 1 block")
+						}).Info("Node block collated gap with more than 1 block")
 					}
 
 					metrics.GetOrRegisterGauge(blockCollatedGapPattern, node.name).Update(int64(node.lastBlockGap))
@@ -251,7 +251,7 @@ func (node *Node) FetchTxReceiptStatus(config health.TimedCounterConfig, txHash 
 			return nil
 		},
 		func(err error, unhealthy, unrecovered bool, elapsed time.Duration) {
-			logrus.WithError(err).WithField("node", node.name).Error("Failed to query tx receipt status")
+			logrus.WithError(err).WithField("node", node.name).Info("Failed to query tx receipt status")
 
 			node.ethRpcError = err.Error()
 
