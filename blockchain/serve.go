@@ -234,6 +234,11 @@ func monitorTxFailures(config *Config, nodes []*Node, txInfo *BlockTxInfo) {
 					index = (index + 1) % len(nodes)
 				}
 			}
+
+			if _, existed := blockFailedTxCntRecord[txInfo.Height]; !existed {
+				logrus.WithField("height", txInfo.Height).Info("Failed to fetch block receipt status for this height, set to 0")
+				blockFailedTxCntRecord[txInfo.Height] = 0
+			}
 		}
 
 		totalTxCnt, failedTxCnt := 0, 0
