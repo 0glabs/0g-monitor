@@ -221,6 +221,7 @@ func monitorTxFailures(config *Config, nodes []*Node, txInfo *BlockTxInfo) {
 			index := int(time.Now().Unix() % int64(len(nodes)))
 			statusMap, err := nodes[index].FetchBlockReceiptStatus(config.NodeHeightReport.TimedCounterConfig, txInfo.Height)
 			if err != nil {
+				logrus.WithError(err).Error("Failed to fetch block receipt status")
 				return
 			}
 

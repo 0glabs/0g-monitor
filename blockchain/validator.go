@@ -69,7 +69,7 @@ func (validator *Validator) Update(config health.TimedCounterConfig) {
 		func() error {
 			jailed, err := IsValidatorJailed(validator.url)
 			if err != nil {
-				logrus.WithError(err).WithField("validator", validator.String()).Info("Failed to query validator info")
+				logrus.WithError(err).WithField("validator", validator.String()).Error("Failed to query validator info")
 				return err
 			}
 

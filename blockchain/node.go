@@ -65,7 +65,7 @@ func (node *Node) UpdateHeight(config AvailabilityReport) {
 			var err error
 			info, err = EthGetLatestBlockInfo(node.url)
 			if err != nil {
-				logrus.WithError(err).WithField("node", node.name).Debug("Failed to query block number")
+				logrus.WithError(err).WithField("node", node.name).Error("Failed to query block number")
 				return err
 			}
 
@@ -251,7 +251,7 @@ func (node *Node) FetchTxReceiptStatus(config health.TimedCounterConfig, txHash 
 			return nil
 		},
 		func(err error, unhealthy, unrecovered bool, elapsed time.Duration) {
-			logrus.WithError(err).WithField("node", node.name).Debug("Failed to query tx receipt status")
+			logrus.WithError(err).WithField("node", node.name).Error("Failed to query tx receipt status")
 
 			node.ethRpcError = err.Error()
 
@@ -311,7 +311,7 @@ func (node *Node) FetchBlockReceiptStatus(config health.TimedCounterConfig, heig
 			return nil
 		},
 		func(err error, unhealthy, unrecovered bool, elapsed time.Duration) {
-			logrus.WithError(err).WithField("node", node.name).Debug("Failed to query tx receipt status")
+			logrus.WithError(err).WithField("node", node.name).Error("Failed to query tx receipt status")
 
 			node.ethRpcError = err.Error()
 
