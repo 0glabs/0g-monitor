@@ -27,7 +27,6 @@ func getHttpClient(url string) *resty.Client {
 		return c
 	} else {
 		ethClientLock.RUnlock()
-		println(url, "lock")
 		ethClientLock.Lock()
 		defer ethClientLock.Unlock()
 		transport := &http.Transport{
