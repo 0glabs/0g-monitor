@@ -311,7 +311,7 @@ func (node *Node) FetchBlockReceiptStatus(config health.TimedCounterConfig, heig
 			return nil
 		},
 		func(err error, unhealthy, unrecovered bool, elapsed time.Duration) {
-			logrus.WithError(err).WithField("node", node.name).Error("Failed to query tx receipt status")
+			logrus.WithError(err).WithField("node", node.name).Info("Failed to query tx receipt status")
 
 			node.ethRpcError = err.Error()
 
