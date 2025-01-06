@@ -190,6 +190,14 @@ func (node *Node) CheckHeight(config *HeightReportConfig, target uint64) {
 
 	metrics.GetOrRegisterGauge(blockHeightBehindPattern, node.name).Update(int64(behind))
 	if behind <= config.MaxGap {
+		if behind > 1 {
+			logrus.WithFields(logrus.Fields{
+				"node":   node.name,
+				"height": node.currentBlockInfo.Height,
+				"target": target,
+				"behind": behind,
+			}).Info("Node block height is behind")
+		}
 		metrics.GetOrRegisterGauge(blockHeightUnhealthPattern, node.name).Update(0)
 
 		if recovered, elapsed := node.heightHealth.OnSuccess(config.TimedCounterConfig); recovered {
