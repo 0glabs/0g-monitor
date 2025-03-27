@@ -28,7 +28,7 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type SignerClient interface {
-	// This API accepts rows of encoded blobs to sign from clients. The node will verify the blobs existance in `DAEntrance` contract and validate the received rows.
+	// This API accepts rows of encoded blobs to sign from clients. The node will verify the blobs existence in `DAEntrance` contract and validate the received rows.
 	BatchSign(ctx context.Context, in *BatchSignRequest, opts ...grpc.CallOption) (*BatchSignReply, error)
 	// This retrieves the requested encoded rows from the DA node database.
 	BatchRetrieve(ctx context.Context, in *BatchRetrieveRequest, opts ...grpc.CallOption) (*BatchRetrieveReply, error)
